@@ -1,0 +1,32 @@
+# Build artifacts
+build/
+cmake-build*/
+CMakeFiles/
+CMakeCache.txt
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+
+# Qt
+*.pro.user
+*.user
+*.qbs.user
+*.qmlproject.user
+*.qmake.stash
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

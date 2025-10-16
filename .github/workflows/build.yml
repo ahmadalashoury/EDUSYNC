@@ -1,37 +1,43 @@
+# .github/workflows/build.yml
 name: build
+
 on:
   push:
   pull_request:
 
 jobs:
   build:
+    name: ${{ matrix.os }} · Qt ${{ matrix.qt }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        qt: ["6.6.3"]
-    runs-on: ${{ matrix.os }}
+        qt: ["6.6.3"]   # keep in sync with your local install
 
     steps:
       - uses: actions/checkout@v4
 
+      # Install Qt with WebEngine
       - name: Install Qt ${{ matrix.qt }}
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt }}
-          # We use WebEngine in EduSync’s dashboard view
-          modules: qtbase qtwebengine
+          # desktop host/target are auto-detected
+          modules: "qtwebengine"   # <-- THIS is the key
           cache: true
 
-      # qt-cmake sets up CMAKE_PREFIX_PATH for the installed Qt
       - name: Configure (CMake)
-        run: qt-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          qt-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release -- -j2
+        run: cmake --build build --config Release -j
 
       - name: Package artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: EduSync-${{ matrix.os }}
-          path: build/**
+          name: EduSync-${{ runner.os }}-Qt${{ matrix.qt }}
+          path: |
+            build/**

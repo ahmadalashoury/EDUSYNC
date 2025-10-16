@@ -59,3 +59,8 @@ set_target_properties(EduSync PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
 )
+
+
+# Required for Qt WebEngine apps (packs resources, etc.)
+qt_finalize_executable(EduSync)
+

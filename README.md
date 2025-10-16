@@ -1,3 +1,6 @@
+![build](https://github.com/ahmadalashoury/EduSync/actions/workflows/build.yml/badge.svg)
+
+
 # EduSync - AI-Powered Calendar Application
 
 EduSync is a modern, AI-powered calendar application built with Qt and C++. It features a beautiful dark theme, intelligent event management, and AI-driven scheduling suggestions.

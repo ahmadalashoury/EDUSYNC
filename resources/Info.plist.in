@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
+	<key>CFBundleIdentifier</key>
+	<string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>${MACOSX_BUNDLE_BUNDLE_NAME}</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>${MACOSX_BUNDLE_SHORT_VERSION_STRING}</string>
+	<key>CFBundleVersion</key>
+	<string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CSResourcesFileMapped</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>${MACOSX_BUNDLE_COPYRIGHT}</string>
+
+	<!-- macOS 13 and earlier -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>EduSync syncs events with your Apple Calendar so they appear alongside your Google and Outlook calendars.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>EduSync pulls your Apple Reminders into its unified daily view and can add new reminders on your behalf.</string>
+
+	<!-- macOS 14 and later -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>EduSync reads and writes events in your Apple Calendar so the day timeline, AI assistant, and scheduler can work with all your calendar sources in one place.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>EduSync reads and writes reminders in Apple Reminders so you can capture, view, and complete them alongside your calendar events.</string>
+
+	<!-- Local notifications -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>EduSync sends a reminder 15 minutes before each scheduled event so you never miss a session.</string>
+</dict>
+</plist>

@@ -1,0 +1,482 @@
+#include "OutlookCalendarProvider.h"
+#include "Credentials.h"
+
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QSettings>
+#include <QTimer>
+
+// ============================================================================
+// Construction
+// ============================================================================
+
+OutlookCalendarProvider::OutlookCalendarProvider(QObject* parent)
+    : CalendarProvider(parent)
+{
+    m_nam = new QNetworkAccessManager(this);
+    setAccountKey("outlook/default");
+    setStatusDetail("Ready to connect");
+
+    m_authTimeout = new QTimer(this);
+    m_authTimeout->setSingleShot(true);
+    m_authTimeout->setInterval(120000);
+    connect(m_authTimeout, &QTimer::timeout, this, [this] {
+        if (connectionState() == Connecting) {
+            cleanupAuthServer();
+            setError("Authentication timed out. Please try again.");
+            emit authenticationComplete(false, errorMessage());
+        }
+    });
+
+    loadTokens();
+
+    if (isAuthenticated())
+        setConnectionState(Connected);
+}
+
+// ============================================================================
+// Token storage
+// ============================================================================
+
+void OutlookCalendarProvider::loadTokens() {
+    QSettings s("EduSync", "EduSync");
+    m_accessToken  = s.value("outlook/access_token").toString();
+    m_refreshToken = s.value("outlook/refresh_token").toString();
+    m_tokenExpiry  = QDateTime::fromString(s.value("outlook/token_expiry").toString(), Qt::ISODate);
+    setUserEmail(s.value("outlook/user_email").toString());
+}
+
+bool OutlookCalendarProvider::isAuthenticated() const {
+    return !m_refreshToken.isEmpty();
+}
+
+void OutlookCalendarProvider::signOut() {
+    m_accessToken.clear();
+    m_refreshToken.clear();
+    m_tokenExpiry = QDateTime();
+    setUserEmail(QString());
+
+    QSettings s("EduSync", "EduSync");
+    s.remove("outlook/access_token");
+    s.remove("outlook/refresh_token");
+    s.remove("outlook/token_expiry");
+    s.remove("outlook/user_email");
+
+    setConnectionState(Disconnected);
+    setStatusDetail("Not connected");
+    emit statusMessage("Signed out of Outlook Calendar");
+}
+
+// ============================================================================
+// OAuth2 authentication flow
+// ============================================================================
+
+void OutlookCalendarProvider::authenticate() {
+    if (connectionState() == Connecting) return;
+
+    if (!m_refreshToken.isEmpty()) {
+        refreshAccessToken();
+        return;
+    }
+
+    setConnectionState(Connecting);
+    setStatusDetail("Opening browser");
+
+    cleanupAuthServer();
+    m_authServer = new QTcpServer(this);
+    if (!m_authServer->listen(QHostAddress::LocalHost, 0)) {
+        setError("Failed to start local auth server");
+        emit authenticationComplete(false, errorMessage());
+        return;
+    }
+    m_redirectPort = m_authServer->serverPort();
+    connect(m_authServer, &QTcpServer::newConnection,
+            this, &OutlookCalendarProvider::onOAuthConnection);
+
+    // Build authorization URL — public client (no secret needed)
+    QUrl authUrl(kAuthUrl);
+    QUrlQuery query;
+    query.addQueryItem("client_id",     Credentials::outlookClientId());
+    query.addQueryItem("redirect_uri",  QString("http://localhost:%1/callback").arg(m_redirectPort));
+    query.addQueryItem("response_type", "code");
+    query.addQueryItem("scope",         kScope);
+    query.addQueryItem("response_mode", "query");
+    authUrl.setQuery(query);
+
+    emit statusMessage("Opening browser for Microsoft sign-in...");
+    QDesktopServices::openUrl(authUrl);
+    setStatusDetail("Waiting for Microsoft sign-in");
+    m_authTimeout->start();
+}
+
+void OutlookCalendarProvider::cleanupAuthServer() {
+    if (m_authServer) {
+        m_authServer->close();
+        m_authServer->deleteLater();
+        m_authServer = nullptr;
+    }
+    m_authTimeout->stop();
+}
+
+void OutlookCalendarProvider::onOAuthConnection() {
+    QTcpSocket* socket = m_authServer->nextPendingConnection();
+    if (!socket) return;
+
+    connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
+        const QByteArray data = socket->readAll();
+        const QString request = QString::fromUtf8(data);
+
+        // Parse the GET request for auth code
+        QString authCode;
+        QString error;
+        const int queryStart = request.indexOf('?');
+        const int httpEnd = request.indexOf(" HTTP/");
+        if (queryStart >= 0 && httpEnd > queryStart) {
+            const QString queryString = request.mid(queryStart + 1, httpEnd - queryStart - 1);
+            QUrlQuery urlQuery(queryString);
+            authCode = urlQuery.queryItemValue("code", QUrl::FullyDecoded);
+            error = urlQuery.queryItemValue("error", QUrl::FullyDecoded);
+        }
+
+        if (authCode.isEmpty()) {
+            const QString html =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+                "<html><body style='font-family:-apple-system,sans-serif;"
+                "display:flex;justify-content:center;align-items:center;"
+                "height:100vh;margin:0;background:#0f1115;color:#e6eaf0;'>"
+                "<div style='text-align:center;'>"
+                "<h1 style='color:#ef4444;'>Authentication Failed</h1>"
+                "<p>Could not connect to Outlook Calendar.</p>"
+                "<p style='color:#9ca3af;'>You can close this tab.</p>"
+                "</div></body></html>";
+            socket->write(html.toUtf8());
+            socket->flush();
+            socket->disconnectFromHost();
+            socket->deleteLater();
+            cleanupAuthServer();
+
+            const QString msg = (error == "access_denied")
+                ? "You cancelled the sign-in."
+                : "No authorization code received.";
+            setError(msg);
+            emit authenticationComplete(false, msg);
+            return;
+        }
+
+        const QString html =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+            "<html><body style='font-family:-apple-system,sans-serif;"
+            "display:flex;justify-content:center;align-items:center;"
+            "height:100vh;margin:0;background:#0f1115;color:#e6eaf0;'>"
+            "<div style='text-align:center;'>"
+            "<h1 style='color:#22c55e;'>Connected to Outlook Calendar</h1>"
+            "<p>You can close this tab and return to EduSync.</p>"
+            "</div></body></html>";
+        socket->write(html.toUtf8());
+        socket->flush();
+        socket->disconnectFromHost();
+        socket->deleteLater();
+        cleanupAuthServer();
+
+        exchangeCodeForTokens(authCode);
+    });
+}
+
+void OutlookCalendarProvider::exchangeCodeForTokens(const QString& authCode) {
+    QUrl tokenUrl(kTokenUrl);
+    QNetworkRequest request(tokenUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+    // Public client — no client_secret
+    QUrlQuery params;
+    params.addQueryItem("code",          authCode);
+    params.addQueryItem("client_id",     Credentials::outlookClientId());
+    params.addQueryItem("redirect_uri",  QString("http://localhost:%1/callback").arg(m_redirectPort));
+    params.addQueryItem("grant_type",    "authorization_code");
+    params.addQueryItem("scope",         kScope);
+
+    QNetworkReply* reply = m_nam->post(request, params.query(QUrl::FullyEncoded).toUtf8());
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            setError(QString("Network error: %1").arg(reply->errorString()));
+            emit authenticationComplete(false, errorMessage());
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        const QJsonObject obj = doc.object();
+
+        if (obj.contains("error")) {
+            setError(obj.value("error_description").toString("Token exchange failed"));
+            emit authenticationComplete(false, errorMessage());
+            return;
+        }
+
+        m_accessToken  = obj.value("access_token").toString();
+        m_refreshToken = obj.value("refresh_token").toString();
+        const int expiresIn = obj.value("expires_in").toInt(3600);
+        m_tokenExpiry = QDateTime::currentDateTimeUtc().addSecs(expiresIn - 60);
+
+        QSettings s("EduSync", "EduSync");
+        s.setValue("outlook/access_token",  m_accessToken);
+        s.setValue("outlook/refresh_token", m_refreshToken);
+        s.setValue("outlook/token_expiry",  m_tokenExpiry.toString(Qt::ISODate));
+
+        // Fetch user profile, then emit success
+        setStatusDetail("Finalizing connection");
+        fetchUserProfile();
+    });
+}
+
+void OutlookCalendarProvider::fetchUserProfile() {
+    QUrl profileUrl(QString("%1/me").arg(kGraphApi));
+    QNetworkRequest req(profileUrl);
+    req.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
+
+    QNetworkReply* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+        const QJsonObject profile = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString email = profile.value("mail").toString(
+                              profile.value("userPrincipalName").toString());
+        setUserEmail(email);
+
+        if (!email.isEmpty())
+            QSettings("EduSync", "EduSync").setValue("outlook/user_email", email);
+
+        setConnectionState(Connected);
+        setStatusDetail(email.isEmpty() ? "Connected" : email);
+        emit statusMessage(QString("Connected to Outlook Calendar (%1)").arg(
+            email.isEmpty() ? "authorized" : email));
+        emit authenticationComplete(true, QString());
+    });
+}
+
+void OutlookCalendarProvider::refreshAccessToken() {
+    if (m_refreshToken.isEmpty()) {
+        setError("No refresh token. Please sign in again.");
+        emit authenticationComplete(false, errorMessage());
+        return;
+    }
+
+    QUrl tokenUrl(kTokenUrl);
+    QNetworkRequest request(tokenUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+    QUrlQuery params;
+    params.addQueryItem("refresh_token", m_refreshToken);
+    params.addQueryItem("client_id",     Credentials::outlookClientId());
+    params.addQueryItem("grant_type",    "refresh_token");
+    params.addQueryItem("scope",         kScope);
+
+    QNetworkReply* reply = m_nam->post(request, params.query(QUrl::FullyEncoded).toUtf8());
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            setError(QString("Network error: %1").arg(reply->errorString()));
+            emit authenticationComplete(false, errorMessage());
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        const QJsonObject obj = doc.object();
+
+        if (obj.contains("error")) {
+            m_refreshToken.clear();
+            QSettings("EduSync", "EduSync").remove("outlook/refresh_token");
+            setError("Session expired. Please sign in again.");
+            setStatusDetail("Action needed");
+            emit authenticationComplete(false, errorMessage());
+            return;
+        }
+
+        m_accessToken = obj.value("access_token").toString();
+        const int expiresIn = obj.value("expires_in").toInt(3600);
+        m_tokenExpiry = QDateTime::currentDateTimeUtc().addSecs(expiresIn - 60);
+
+        if (obj.contains("refresh_token"))
+            m_refreshToken = obj.value("refresh_token").toString();
+
+        QSettings s("EduSync", "EduSync");
+        s.setValue("outlook/access_token",  m_accessToken);
+        s.setValue("outlook/refresh_token", m_refreshToken);
+        s.setValue("outlook/token_expiry",  m_tokenExpiry.toString(Qt::ISODate));
+
+        setConnectionState(Connected);
+        setStatusDetail(userEmail().isEmpty() ? "Connected" : userEmail());
+        emit authenticationComplete(true, QString());
+    });
+}
+
+// ============================================================================
+// Authenticated request helper
+// ============================================================================
+
+void OutlookCalendarProvider::makeAuthenticatedRequest(
+    const QString& method,
+    const QUrl& url,
+    const QByteArray& body,
+    std::function<void(const QJsonDocument&, int)> callback)
+{
+    if (m_tokenExpiry.isValid() && QDateTime::currentDateTimeUtc() >= m_tokenExpiry
+        && !m_refreshToken.isEmpty())
+    {
+        QUrl savedUrl = url;
+        QByteArray savedBody = body;
+        QString savedMethod = method;
+
+        QMetaObject::Connection* conn = new QMetaObject::Connection;
+        *conn = connect(this, &CalendarProvider::authenticationComplete, this,
+            [this, conn, savedMethod, savedUrl, savedBody, callback](bool ok, const QString&) {
+                disconnect(*conn);
+                delete conn;
+                if (ok) makeAuthenticatedRequest(savedMethod, savedUrl, savedBody, callback);
+                else    callback(QJsonDocument(), 401);
+            });
+        refreshAccessToken();
+        return;
+    }
+
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QNetworkReply* reply = nullptr;
+    if (method == "GET")         reply = m_nam->get(request);
+    else if (method == "POST")   reply = m_nam->post(request, body);
+    else if (method == "PATCH")  reply = m_nam->sendCustomRequest(request, "PATCH", body);
+    else if (method == "DELETE") reply = m_nam->deleteResource(request);
+
+    if (!reply) { callback(QJsonDocument(), 0); return; }
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, callback, method, url, body] {
+        reply->deleteLater();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray data = reply->readAll();
+
+        if (status == 401 && !m_refreshToken.isEmpty()) {
+            QMetaObject::Connection* conn = new QMetaObject::Connection;
+            *conn = connect(this, &CalendarProvider::authenticationComplete, this,
+                [this, conn, method, url, body, callback](bool ok, const QString&) {
+                    disconnect(*conn);
+                    delete conn;
+                    if (ok) makeAuthenticatedRequest(method, url, body, callback);
+                    else    callback(QJsonDocument(), 401);
+                });
+            refreshAccessToken();
+            return;
+        }
+
+        callback(QJsonDocument::fromJson(data), status);
+    });
+}
+
+// ============================================================================
+// Fetch events
+// ============================================================================
+
+void OutlookCalendarProvider::fetchEvents(const QDate& from, const QDate& to) {
+    if (!isAuthenticated()) {
+        emit operationComplete(false, "Not authenticated");
+        return;
+    }
+
+    setConnectionState(Syncing);
+    setStatusDetail("Syncing now");
+
+    const QString fromStr = QDateTime(from, QTime(0,0)).toUTC().toString(Qt::ISODate);
+    const QString toStr   = QDateTime(to, QTime(23,59,59)).toUTC().toString(Qt::ISODate);
+
+    QUrl url(QString("%1/me/calendarview").arg(kGraphApi));
+    QUrlQuery query;
+    query.addQueryItem("startDateTime", fromStr);
+    query.addQueryItem("endDateTime",   toStr);
+    query.addQueryItem("$top",          "250");
+    query.addQueryItem("$orderby",      "start/dateTime");
+    query.addQueryItem("$select",       "id,subject,body,start,end,lastModifiedDateTime");
+    url.setQuery(query);
+
+    emit statusMessage("Fetching Outlook Calendar events...");
+
+    makeAuthenticatedRequest("GET", url, {}, [this](const QJsonDocument& doc, int status) {
+        if (status < 200 || status >= 300) {
+            setError(QString("Fetch failed (HTTP %1)").arg(status));
+            emit operationComplete(false, errorMessage());
+            return;
+        }
+
+        const QJsonArray items = doc.object().value("value").toArray();
+        QVector<Event> events;
+        events.reserve(items.size());
+
+        for (const QJsonValue& val : items) {
+            Event event = Event::fromOutlookJson(val.toObject());
+            event.setProviderKey(accountKey());
+            events.push_back(event);
+        }
+
+        setConnectionState(Connected);
+        setLastSyncTime(QDateTime::currentDateTime());
+        setStatusDetail(QString("Last synced %1").arg(lastSyncTime().toString("h:mm AP")));
+        emit statusMessage(QString("Fetched %1 events from Outlook").arg(events.size()));
+        emit eventsFetched(events);
+    });
+}
+
+// ============================================================================
+// Create / Update / Delete
+// ============================================================================
+
+void OutlookCalendarProvider::createEvent(const Event& event) {
+    if (!isAuthenticated()) { emit operationComplete(false, "Not authenticated"); return; }
+
+    QUrl url(QString("%1/me/events").arg(kGraphApi));
+    const QByteArray body = QJsonDocument(event.toOutlookJson()).toJson(QJsonDocument::Compact);
+
+    makeAuthenticatedRequest("POST", url, body, [this](const QJsonDocument& doc, int status) {
+        if (status >= 200 && status < 300) {
+            emit eventCreated(doc.object().value("id").toString());
+            emit operationComplete(true, QString());
+        } else {
+            emit operationComplete(false, QString("Create failed (HTTP %1)").arg(status));
+        }
+    });
+}
+
+void OutlookCalendarProvider::updateEvent(const QString& externalId, const Event& event) {
+    if (!isAuthenticated()) { emit operationComplete(false, "Not authenticated"); return; }
+
+    QUrl url(QString("%1/me/events/%2").arg(kGraphApi, externalId));
+    const QByteArray body = QJsonDocument(event.toOutlookJson()).toJson(QJsonDocument::Compact);
+
+    makeAuthenticatedRequest("PATCH", url, body, [this](const QJsonDocument&, int status) {
+        if (status >= 200 && status < 300)
+            emit operationComplete(true, QString());
+        else
+            emit operationComplete(false, QString("Update failed (HTTP %1)").arg(status));
+    });
+}
+
+void OutlookCalendarProvider::deleteEvent(const QString& externalId) {
+    if (!isAuthenticated()) { emit operationComplete(false, "Not authenticated"); return; }
+
+    QUrl url(QString("%1/me/events/%2").arg(kGraphApi, externalId));
+
+    makeAuthenticatedRequest("DELETE", url, {}, [this](const QJsonDocument&, int status) {
+        if (status >= 200 && status < 300)
+            emit operationComplete(true, QString());
+        else
+            emit operationComplete(false, QString("Delete failed (HTTP %1)").arg(status));
+    });
+}

@@ -1,22 +1,29 @@
 # EduSync
 
-EduSync is a macOS desktop calendar built with Qt, C++, and native Apple frameworks. It combines a calmer calendar shell, a futuristic day view, local planning assistance, and one unified account/settings flow instead of a bunch of competing surfaces.
+EduSync is a macOS desktop calendar built with Qt, C++, and native Apple frameworks. It combines a premium scheduling shell, day/week planning views, unified account management, and an assistant layer that can work both locally and with an OpenAI-compatible model.
 
 The current app is focused on feeling like one polished product again:
 - one main shell
 - one settings/accounts flow
 - local event storage
 - optional external calendar linking
+- assistant-guided planning and natural-language scheduling
 - premium dark and light themes
 
 ## What EduSync Does
 
 ### Calendar experience
-- Month calendar in the left rail with account status and quick context
+- Left-rail mini calendar with month navigation, source visibility, and selected-day event context
 - Day and week timeline views in the center workspace
 - Futuristic event editor for creating and editing blocks
 - Refined dark/light visual system across the shell, calendar, and editor
-- Dashboard assistant panel for workload, free-time, suggestions, and chat
+- Right-side assistant panel for workload, free-time, suggestions, and chat
+
+### Workspace flow
+- Single shell with day/week view switching
+- Inline event creation from empty time slots
+- Selection-aware edit and delete actions
+- Left sidebar source toggles and quick event list for the focused date
 
 ### Event management
 - Create, edit, and delete local events
@@ -31,12 +38,14 @@ The current app is focused on feeling like one polished product again:
 - Google Calendar
 - Outlook Calendar
 - CalDAV accounts including iCloud, Yahoo, Fastmail, and custom servers
+- Unified account center in Settings instead of separate competing flows
 
 ### Assistant features
-- Local schedule analysis
-- Suggestions based on open time and event balance
+- Local schedule analysis with no network dependency
+- Suggestions based on open time, meeting load, and day balance
 - Natural-language assistant chat for scheduling and calendar questions
-- Optional external LLM key for richer assistant features
+- Optional OpenAI-compatible endpoint, model, and API key configuration
+- Deterministic local fallback when no LLM is configured
 
 ## Current Behavior And Limits
 
@@ -49,11 +58,14 @@ This section is intentionally honest.
 - CalDAV account setup and sync discovery
 - Unified settings and account management
 - Interactive assistant panel with local insights and optional LLM chat
+- Day and week planning views
+- Natural-language event creation from the assistant panel
 
 ### Still limited
 - Apple and CalDAV outbound create/edit parity is not complete yet
 - External provider support should be treated as sync-oriented first, not as full two-way editing for every provider surface
 - The app currently targets macOS builds because it links against EventKit and UserNotifications
+- The assistant is strongest for scheduling and planning tasks rather than broad general-purpose chat
 
 ## Stack
 
@@ -63,6 +75,7 @@ This section is intentionally honest.
 - CMake
 - EventKit
 - UserNotifications
+- OpenAI-compatible chat/completions API for optional LLM assistance
 
 ## Build Requirements
 
@@ -90,9 +103,9 @@ To run the binary directly:
 ## Project Structure
 
 - `CMakeLists.txt`: build configuration
-- `src/MainWindow.cpp`: main shell, event editor, and app flow
+- `src/MainWindow.cpp`: main shell, left rail, event editor, and overall app flow
 - `src/SettingsDialog.cpp`: unified settings and account center
-- `src/CalendarWidget.cpp`: month calendar surface
+- `src/CalendarWidget.cpp`: mini month calendar surface and cell rendering
 - `src/DayTimelineWidget.cpp`: day timeline rendering
 - `src/WeekTimelineWidget.cpp`: week timeline rendering
 - `src/DashboardWidget.cpp`: right-side assistant, metrics, suggestions, and chat
@@ -103,6 +116,7 @@ To run the binary directly:
 - `src/CalDAVProvider.cpp`: CalDAV account handling and sync
 - `src/LLMAssistantService.cpp`: OpenAI-compatible assistant analysis and chat
 - `src/LocalAssistantService.cpp`: local fallback assistant and planning logic
+- `src/SchedulerEngine.cpp`: deterministic schedule analysis and planning helpers
 - `src/Theme.h`: visual tokens and global styling
 
 ## Privacy Notes
@@ -117,15 +131,13 @@ Those values are local machine data and are not meant to be committed to Git.
 
 Compile-time credential placeholders live in `src/Credentials.h`. Keep them as placeholders unless you intentionally want to ship your own distribution credentials. Do not commit real secrets there.
 
-## Repository Cleanup Notes
-
-The repo was recently consolidated to remove the older parallel shell/rewrite split. The current direction is:
-- preserve the stronger original shell behavior
-- keep the useful parts of the rewrite
-- remove duplicate flows
-- stabilize first
-- polish second
-
 ## Status
 
-EduSync is now in a much more coherent place than the split-shell state it was in before, but it is still an actively evolving desktop app rather than a finished platform product.
+EduSync is now a coherent desktop calendar product with:
+- one main shell
+- one account/settings flow
+- multi-provider calendar linking
+- assistant-backed planning
+- premium light and dark modes
+
+It is still an actively evolving desktop app rather than a finished platform product, but the current repo reflects the newer shell, assistant, sidebar, and planning experience rather than the older split-app state.

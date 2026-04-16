@@ -522,121 +522,212 @@ void MainWindow::buildUI() {
     m_splitter->setChildrenCollapsible(false);
     rootLayout->addWidget(m_splitter);
 
-    // ── LEFT PANEL ─────────────────────────────────────────────────────────
+    // ── LEFT PANEL — Zoho-style sidebar ────────────────────────────────────
     auto* leftPanel = new QWidget;
     leftPanel->setObjectName("leftRail");
     auto* leftLayout = new QVBoxLayout(leftPanel);
-    leftLayout->setContentsMargins(Theme::Space::M, Theme::Space::M,
-                                   Theme::Space::M, Theme::Space::M);
-    leftLayout->setSpacing(Theme::Space::M);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(0);
 
-    // ── Calendar card (nav + grid unified) ───────────────────────────────
-    auto* calCard = new QFrame;
-    calCard->setObjectName("calendarCard");
-    auto* calCardLay = new QVBoxLayout(calCard);
-    calCardLay->setContentsMargins(Theme::Space::M, Theme::Space::M,
-                                   Theme::Space::M, Theme::Space::M);
-    calCardLay->setSpacing(0);
+    // ── NEW EVENT button ─────────────────────────────────────────────────
+    {
+        auto* topRow = new QWidget;
+        auto* topLay = new QHBoxLayout(topRow);
+        topLay->setContentsMargins(14, 18, 14, 12);
 
-    // Nav row inside the card
-    auto* navRow = new QHBoxLayout;
-    navRow->setContentsMargins(Theme::Space::XS, 0, Theme::Space::XS, Theme::Space::S);
-    navRow->setSpacing(Theme::Space::XS);
+        m_btnAdd = new QPushButton("+ New Event");
+        m_btnAdd->setObjectName("accentBtn");
+        m_btnAdd->setCursor(Qt::PointingHandCursor);
+        m_btnAdd->setFixedHeight(42);
+        m_btnAdd->setStyleSheet(
+            "QPushButton#accentBtn {"
+            "  border-radius: 21px;"
+            "  font-size: 13px;"
+            "  font-weight: 700;"
+            "  letter-spacing: 0.02em;"
+            "}");
+        topLay->addWidget(m_btnAdd);
+        leftLayout->addWidget(topRow);
+    }
 
-    m_prevBtn = new QPushButton;
-    m_prevBtn->setText(QString::fromUtf8("\xe2\x9f\xa8"));
-    m_prevBtn->setObjectName("navBtn");
-    m_prevBtn->setFixedSize(32, 32);
-    m_prevBtn->setCursor(Qt::PointingHandCursor);
-    m_prevBtn->setToolTip("Previous month");
+    // ── CALENDAR SOURCES (MY CALENDARS / APP CALENDARS) ─────────────────
+    m_calSourcesContainer = new QWidget;
+    m_calSourcesContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    leftLayout->addWidget(m_calSourcesContainer);
 
-    m_nextBtn = new QPushButton;
-    m_nextBtn->setText(QString::fromUtf8("\xe2\x9f\xa9"));
-    m_nextBtn->setObjectName("navBtn");
-    m_nextBtn->setFixedSize(32, 32);
-    m_nextBtn->setCursor(Qt::PointingHandCursor);
-    m_nextBtn->setToolTip("Next month");
+    // ── MINI CALENDAR — iOS pill style ──────────────────────────────────
+    {
+        auto* calCard = new QFrame;
+        calCard->setObjectName("calendarCard");
+        auto* calCardLay = new QVBoxLayout(calCard);
+        calCardLay->setContentsMargins(10, 10, 10, 4);
+        calCardLay->setSpacing(0);
 
-    m_monthTitle = new QLabel;
-    m_monthTitle->setFont(Theme::Font::subheading());
-    m_monthTitle->setAlignment(Qt::AlignCenter);
+        // Row 1: ← [month name large] →
+        auto* monthRow = new QHBoxLayout;
+        monthRow->setContentsMargins(0, 0, 0, 0);
+        monthRow->setSpacing(4);
 
-    m_todayBtn = new QPushButton("Today");
-    m_todayBtn->setObjectName("todayBtn");
-    m_todayBtn->setFixedHeight(26);
-    m_todayBtn->setCursor(Qt::PointingHandCursor);
-    m_todayBtn->setToolTip("Go to today");
+        m_prevBtn = new QPushButton("\xe2\x80\xb9"); // ‹
+        m_prevBtn->setObjectName("navBtn");
+        m_prevBtn->setFixedSize(26, 26);
+        m_prevBtn->setCursor(Qt::PointingHandCursor);
+        m_prevBtn->setToolTip("Previous month");
 
-    navRow->addWidget(m_prevBtn);
-    navRow->addWidget(m_monthTitle, 1);
-    navRow->addWidget(m_nextBtn);
-    navRow->addSpacing(Theme::Space::XS);
-    navRow->addWidget(m_todayBtn);
-    calCardLay->addLayout(navRow);
+        m_nextBtn = new QPushButton("\xe2\x80\xba"); // ›
+        m_nextBtn->setObjectName("navBtn");
+        m_nextBtn->setFixedSize(26, 26);
+        m_nextBtn->setCursor(Qt::PointingHandCursor);
+        m_nextBtn->setToolTip("Next month");
 
-    // Calendar grid inside the card
-    m_calendar = new CalendarWidget(calCard);
-    m_calendar->setSelectionMode(QCalendarWidget::SingleSelection);
-    m_calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
-    m_calendar->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);
-    m_calendar->setFirstDayOfWeek(Qt::Monday);
-    m_calendar->setGridVisible(false);
-    m_calendar->setFocusPolicy(Qt::StrongFocus);
-    m_calendar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    m_calendar->setMaximumHeight(330);
+        // Large month name label (e.g. "APRIL")
+        m_monthTitle = new QLabel;
+        QFont monthF = Theme::Font::base();
+        monthF.setPointSizeF(16.0);
+        monthF.setWeight(QFont::Black);
+        monthF.setLetterSpacing(QFont::AbsoluteSpacing, 0.5);
+        m_monthTitle->setFont(monthF);
+        m_monthTitle->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
 
-    if (auto* nav = m_calendar->findChild<QWidget*>("qt_calendar_navigationbar"))
-        nav->hide();
-    calCardLay->addWidget(m_calendar);
+        monthRow->addWidget(m_prevBtn);
+        monthRow->addWidget(m_monthTitle, 1);
+        monthRow->addWidget(m_nextBtn);
+        calCardLay->addLayout(monthRow);
 
-    leftLayout->addWidget(calCard);
+        // Row 2: year (small, muted) + Today button
+        auto* yearRow = new QHBoxLayout;
+        yearRow->setContentsMargins(2, 0, 2, 6);
+        yearRow->setSpacing(0);
 
-    // ── Day event mini-list (popover below calendar) ─────────────────────
-    m_dayEventCard = new QFrame;
-    m_dayEventCard->setObjectName("accountHubCard");
-    m_dayEventCard->hide();
-    auto* dayEventLay = new QVBoxLayout(m_dayEventCard);
-    dayEventLay->setContentsMargins(Theme::Space::M, Theme::Space::M,
-                                    Theme::Space::M, Theme::Space::M);
-    dayEventLay->setSpacing(Theme::Space::XS);
-    m_dayEventTitle = new QLabel;
-    m_dayEventTitle->setFont(Theme::Font::caption());
-    dayEventLay->addWidget(m_dayEventTitle);
-    m_dayEventList = new QWidget;
-    auto* delLay = new QVBoxLayout(m_dayEventList);
-    delLay->setContentsMargins(0, 0, 0, 0);
-    delLay->setSpacing(2);
-    dayEventLay->addWidget(m_dayEventList);
-    leftLayout->addWidget(m_dayEventCard);
+        m_yearLabel = new QLabel;
+        QFont yearF = Theme::Font::base();
+        yearF.setPointSizeF(11.0);
+        yearF.setWeight(QFont::Normal);
+        m_yearLabel->setFont(yearF);
+        m_yearLabel->setStyleSheet("color: #3d5780;");
+        yearRow->addWidget(m_yearLabel, 1);
 
-    // ── Account summary card ─────────────────────────────────────────────
-    auto* accountCard = new QFrame;
-    accountCard->setObjectName("accountHubCard");
-    auto* accountLayout = new QVBoxLayout(accountCard);
-    accountLayout->setContentsMargins(Theme::Space::L, Theme::Space::L,
-                                      Theme::Space::L, Theme::Space::L);
-    accountLayout->setSpacing(Theme::Space::S);
+        m_todayBtn = new QPushButton("Today");
+        m_todayBtn->setObjectName("todayBtn");
+        m_todayBtn->setFixedHeight(22);
+        m_todayBtn->setCursor(Qt::PointingHandCursor);
+        m_todayBtn->setToolTip("Go to today");
+        yearRow->addWidget(m_todayBtn);
+        calCardLay->addLayout(yearRow);
 
-    auto* accountEyebrow = new QLabel("CALENDAR ACCOUNTS");
-    accountEyebrow->setFont(Theme::Font::caption());
-    accountLayout->addWidget(accountEyebrow);
+        // Calendar grid (compact)
+        m_calendar = new CalendarWidget(calCard);
+        m_calendar->setSelectionMode(QCalendarWidget::SingleSelection);
+        m_calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+        m_calendar->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);
+        m_calendar->setFirstDayOfWeek(Qt::Monday);
+        m_calendar->setGridVisible(false);
+        m_calendar->setFocusPolicy(Qt::StrongFocus);
+        m_calendar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+        m_calendar->setMaximumHeight(210);
 
-    m_accountSummaryTitle = new QLabel("No calendars connected");
-    m_accountSummaryTitle->setFont(Theme::Font::subheading());
-    accountLayout->addWidget(m_accountSummaryTitle);
+        if (auto* nav = m_calendar->findChild<QWidget*>("qt_calendar_navigationbar"))
+            nav->hide();
+        calCardLay->addWidget(m_calendar);
 
-    m_accountSummaryMeta = new QLabel("Connect Apple, CalDAV, Google, or Outlook calendars in Settings.");
-    m_accountSummaryMeta->setFont(Theme::Font::base());
-    m_accountSummaryMeta->setWordWrap(true);
-    accountLayout->addWidget(m_accountSummaryMeta);
+        leftLayout->addWidget(calCard);
+    }
 
-    m_syncStatus = new QLabel;
-    m_syncStatus->setFont(Theme::Font::base());
-    m_syncStatus->setWordWrap(true);
-    accountLayout->addWidget(m_syncStatus);
+    // ── DAY EVENT LIST (below mini calendar, iOS style) ──────────────────
+    {
+        auto* evSep = new QFrame;
+        evSep->setFrameShape(QFrame::HLine);
+        evSep->setFixedHeight(1);
+        evSep->setStyleSheet("background: #0f1520; border: none;");
+        leftLayout->addWidget(evSep);
 
-    leftLayout->addWidget(accountCard);
+        auto* evSection = new QWidget;
+        auto* evLay = new QVBoxLayout(evSection);
+        evLay->setContentsMargins(14, 10, 14, 10);
+        evLay->setSpacing(2);
+
+        // Date + "+" button row
+        auto* dateRow = new QHBoxLayout;
+        dateRow->setSpacing(4);
+
+        m_calEventDateLabel = new QLabel("SELECT A DATE");
+        QFont dateF;
+        dateF.setPointSizeF(10.5);
+        dateF.setWeight(QFont::Bold);
+        dateF.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
+        m_calEventDateLabel->setFont(dateF);
+        dateRow->addWidget(m_calEventDateLabel, 1);
+
+        auto* calAddBtn = new QPushButton("+");
+        calAddBtn->setObjectName("navBtn");
+        calAddBtn->setFixedSize(22, 22);
+        calAddBtn->setCursor(Qt::PointingHandCursor);
+        connect(calAddBtn, &QPushButton::clicked, this, &MainWindow::openAddDialog);
+        dateRow->addWidget(calAddBtn);
+        evLay->addLayout(dateRow);
+
+        // Relative date label: "TODAY" / "3 DAYS FROM TODAY"
+        m_calEventRelLabel = new QLabel;
+        QFont relF = Theme::Font::base();
+        relF.setPointSizeF(9.5);
+        m_calEventRelLabel->setFont(relF);
+        m_calEventRelLabel->setStyleSheet("color: #3d5780;");
+        evLay->addWidget(m_calEventRelLabel);
+
+        // Scrollable event list
+        m_calEventList = new QWidget;
+        auto* evListLay = new QVBoxLayout(m_calEventList);
+        evListLay->setContentsMargins(0, 6, 0, 0);
+        evListLay->setSpacing(4);
+        evLay->addWidget(m_calEventList);
+
+        leftLayout->addWidget(evSection);
+    }
+
     leftLayout->addStretch();
+
+    // ── FOOTER (sync status + Sync/Settings buttons) ─────────────────────
+    {
+        auto* footerSep = new QFrame;
+        footerSep->setFrameShape(QFrame::HLine);
+        footerSep->setFixedHeight(1);
+        footerSep->setStyleSheet("background: #0f1520; border: none;");
+        leftLayout->addWidget(footerSep);
+
+        auto* footer = new QWidget;
+        auto* footerLay = new QVBoxLayout(footer);
+        footerLay->setContentsMargins(14, 10, 14, 14);
+        footerLay->setSpacing(6);
+
+        m_syncStatus = new QLabel("No calendars connected");
+        QFont statusF = Theme::Font::base();
+        statusF.setPointSizeF(10.5);
+        m_syncStatus->setFont(statusF);
+        m_syncStatus->setWordWrap(true);
+        m_syncStatus->setStyleSheet("color: #3d5780;");
+        footerLay->addWidget(m_syncStatus);
+
+        auto* footerBtns = new QHBoxLayout;
+        footerBtns->setSpacing(6);
+
+        m_btnSync = new QPushButton("Sync");
+        m_btnSync->setObjectName("subtleBtn");
+        m_btnSync->setCursor(Qt::PointingHandCursor);
+        m_btnSync->setFixedHeight(30);
+        m_btnSync->setToolTip("Sync with connected calendars");
+
+        m_btnSettings = new QPushButton("Settings");
+        m_btnSettings->setObjectName("subtleBtn");
+        m_btnSettings->setCursor(Qt::PointingHandCursor);
+        m_btnSettings->setFixedHeight(30);
+        m_btnSettings->setToolTip("Open settings");
+
+        footerBtns->addWidget(m_btnSync);
+        footerBtns->addWidget(m_btnSettings);
+        footerLay->addLayout(footerBtns);
+
+        leftLayout->addWidget(footer);
+    }
 
     // ── CENTER PANEL ───────────────────────────────────────────────────────
     auto* centerPanel = new QWidget;
@@ -660,10 +751,7 @@ void MainWindow::buildUI() {
     m_dayLabel = new QLabel;
     m_dayLabel->setFont(Theme::Font::title());
 
-    m_btnAdd = new QPushButton("+ Add Event");
-    m_btnAdd->setObjectName("accentBtn");
-    m_btnAdd->setCursor(Qt::PointingHandCursor);
-
+    // Edit / Delete act on the selected event in the timeline
     m_btnEdit = new QPushButton("Edit");
     m_btnEdit->setObjectName("ghostBtn");
     m_btnEdit->setCursor(Qt::PointingHandCursor);
@@ -673,16 +761,6 @@ void MainWindow::buildUI() {
     m_btnDelete->setObjectName("dangerBtn");
     m_btnDelete->setCursor(Qt::PointingHandCursor);
     m_btnDelete->setEnabled(false);
-
-    m_btnSync = new QPushButton("Sync");
-    m_btnSync->setObjectName("subtleBtn");
-    m_btnSync->setCursor(Qt::PointingHandCursor);
-    m_btnSync->setToolTip("Sync with connected calendars");
-
-    m_btnSettings = new QPushButton("Settings");
-    m_btnSettings->setObjectName("subtleBtn");
-    m_btnSettings->setCursor(Qt::PointingHandCursor);
-    m_btnSettings->setToolTip("Open settings");
 
     // View toggle (Day / Week)
     m_btnDay = new QPushButton("Day");
@@ -697,14 +775,9 @@ void MainWindow::buildUI() {
     toolbarLayout->addWidget(m_dayLabel, 1);
     toolbarLayout->addWidget(m_btnDay);
     toolbarLayout->addWidget(m_btnWeek);
-    toolbarLayout->addSpacing(Theme::Space::S);
-    toolbarLayout->addWidget(m_btnAdd);
+    toolbarLayout->addSpacing(Theme::Space::L);
     toolbarLayout->addWidget(m_btnEdit);
     toolbarLayout->addWidget(m_btnDelete);
-    toolbarLayout->addSpacing(Theme::Space::M);
-    toolbarLayout->addWidget(m_btnSync);
-    toolbarLayout->addSpacing(Theme::Space::XS);
-    toolbarLayout->addWidget(m_btnSettings);
 
     toolbarOuter->addWidget(toolbar);
 
@@ -740,7 +813,7 @@ void MainWindow::buildUI() {
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 1);
     m_splitter->setStretchFactor(2, 0);
-    m_splitter->setSizes({296, 820, 300});
+    m_splitter->setSizes({260, 860, 300});
 }
 
 // ============================================================================
@@ -873,6 +946,10 @@ void MainWindow::wireConnections() {
             m_store->addBatch(result.plannedEvents);
     });
 
+    // Dashboard chat composer
+    connect(m_dashboard, &DashboardWidget::userChatMessage,
+            this, &MainWindow::onChatMessage);
+
     // Sync status updates
     connect(m_sync, &SyncManager::syncStarted, this, [this] {
         m_syncStatus->setText("Syncing...");
@@ -960,66 +1037,182 @@ void MainWindow::reloadCalDAVProviders() {
 }
 
 // ============================================================================
+// Calendar source list (left sidebar)
+// ============================================================================
+
+void MainWindow::rebuildCalendarSources() {
+    if (!m_calSourcesContainer) return;
+
+    const bool isDark = (m_theme == ThemeMode::Dark);
+    const auto c = isDark ? Theme::dark() : Theme::light();
+
+    // Text colors adapted to theme
+    const QString sectionColor = isDark ? "#2d4060" : c.textTertiary.name();
+    const QString nameOnColor  = isDark ? "#c8d4e8" : c.text.name();
+    const QString nameOffColor = isDark ? "#354560" : c.textSecondary.name();
+    const QString hoverRgba    = isDark ? "rgba(79,140,255,0.08)"
+                                        : "rgba(0,0,0,0.04)";
+    const QString pressRgba    = isDark ? "rgba(79,140,255,0.14)"
+                                        : "rgba(0,0,0,0.08)";
+    const QString indOffStyle  = isDark
+        ? "background:transparent; border:1px solid #2d4060; border-radius:3px;"
+        : "background:transparent; border:1px solid " + c.border.name() + "; border-radius:3px;";
+
+    // Clear existing children
+    delete m_calSourcesContainer->layout();
+    for (QObject* child : m_calSourcesContainer->children()) {
+        if (auto* w = qobject_cast<QWidget*>(child))
+            w->deleteLater();
+    }
+
+    auto* lay = new QVBoxLayout(m_calSourcesContainer);
+    lay->setContentsMargins(0, 4, 0, 4);
+    lay->setSpacing(0);
+
+    // ── Section header helper ───────────────────────────────────────────
+    auto addSection = [&](const QString& text) {
+        auto* lbl = new QLabel(text);
+        QFont f = Theme::Font::caption();
+        f.setLetterSpacing(QFont::AbsoluteSpacing, 1.1);
+        f.setWeight(QFont::Bold);
+        lbl->setFont(f);
+        lbl->setContentsMargins(18, 10, 18, 4);
+        lbl->setStyleSheet("color: " + sectionColor + ";");
+        lay->addWidget(lbl);
+    };
+
+    // ── Source row helper ────────────────────────────────────────────────
+    auto addRow = [&](const QString& key, const QString& name,
+                      const QColor& color, bool connected) {
+        const bool visible = m_sourceVisible.value(key, true);
+
+        auto* btn = new QPushButton;
+        btn->setCheckable(true);
+        btn->setChecked(visible);
+        btn->setFixedHeight(38);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setFlat(true);
+        btn->setStyleSheet(QString(
+            "QPushButton { background:transparent; border:none; text-align:left; padding:0; }"
+            "QPushButton:hover { background:%1; }"
+            "QPushButton:pressed { background:%2; }").arg(hoverRgba, pressRgba));
+
+        auto* rl = new QHBoxLayout(btn);
+        rl->setContentsMargins(18, 0, 14, 0);
+        rl->setSpacing(12);
+
+        // Left: colored circle dot
+        auto* dot = new QFrame;
+        dot->setFixedSize(12, 12);
+        dot->setAttribute(Qt::WA_TransparentForMouseEvents);
+        QColor dc = color; dc.setAlpha(visible ? 255 : 80);
+        dot->setStyleSheet(QString(
+            "background:%1; border-radius:6px;").arg(dc.name(QColor::HexArgb)));
+        rl->addWidget(dot);
+
+        // Name label
+        auto* nameLbl = new QLabel(connected ? name : name + " ·");
+        QFont nf = Theme::Font::base();
+        nf.setPointSizeF(12.0);
+        nameLbl->setFont(nf);
+        nameLbl->setAttribute(Qt::WA_TransparentForMouseEvents);
+        nameLbl->setStyleSheet("color: " + (visible ? nameOnColor : nameOffColor) + ";");
+        rl->addWidget(nameLbl, 1);
+
+        // Right: solid colored square indicator (filled = visible, outline = hidden)
+        auto* indicator = new QFrame;
+        indicator->setFixedSize(12, 12);
+        indicator->setAttribute(Qt::WA_TransparentForMouseEvents);
+        indicator->setStyleSheet(visible
+            ? QString("background:%1; border-radius:3px;").arg(color.name())
+            : indOffStyle);
+        rl->addWidget(indicator);
+
+        connect(btn, &QPushButton::toggled, this,
+                [this, key, dot, nameLbl, indicator, color,
+                 nameOnColor, nameOffColor, indOffStyle](bool checked) {
+            m_sourceVisible[key] = checked;
+            QColor dc = color; dc.setAlpha(checked ? 255 : 80);
+            dot->setStyleSheet(QString(
+                "background:%1; border-radius:6px;").arg(dc.name(QColor::HexArgb)));
+            nameLbl->setStyleSheet("color: " + (checked ? nameOnColor : nameOffColor) + ";");
+            indicator->setStyleSheet(checked
+                ? QString("background:%1; border-radius:3px;").arg(color.name())
+                : indOffStyle);
+            refreshAll();
+        });
+
+        lay->addWidget(btn);
+    };
+
+    // ── MY CALENDARS ─────────────────────────────────────────────────────
+    addSection("MY CALENDARS");
+    addRow("local",   "My Calendar",      QColor("#6366f1"), true);
+    addRow("apple",   "Apple Calendar",   QColor("#fc3d39"),
+           m_appleProvider && m_appleProvider->isAuthenticated());
+    addRow("google",  "Google Calendar",  QColor("#4285f4"),
+           m_googleProvider && m_googleProvider->isAuthenticated());
+    addRow("outlook", "Outlook Calendar", QColor("#0078d4"),
+           m_outlookProvider && m_outlookProvider->isAuthenticated());
+
+    // ── APP CALENDARS (CalDAV) ────────────────────────────────────────────
+    if (!m_caldavProviders.isEmpty()) {
+        lay->addSpacing(4);
+        addSection("APP CALENDARS");
+        const QList<QColor> caldavPalette = {
+            QColor("#22c55e"), QColor("#f59e0b"), QColor("#ec4899"),
+            QColor("#14b8a6"), QColor("#a855f7")
+        };
+        int ci = 0;
+        for (auto* prov : m_caldavProviders) {
+            const QString key = "caldav_" + prov->accountDisplayName();
+            addRow(key, prov->accountDisplayName(),
+                   caldavPalette[ci % caldavPalette.size()],
+                   prov->isAuthenticated());
+            ++ci;
+        }
+    }
+}
+
+// ============================================================================
 // Sync status
 // ============================================================================
 
 void MainWindow::updateSyncStatus() {
-    auto stateLabel = [](CalendarProvider* p) -> QString {
-        switch (p->connectionState()) {
-        case CalendarProvider::Disconnected: return QString();
-        case CalendarProvider::Connecting:   return p->accountDisplayName() + " connecting";
-        case CalendarProvider::Connected:    return p->accountDisplayName();
-        case CalendarProvider::Syncing:      return p->accountDisplayName() + " syncing";
-        case CalendarProvider::Error:        return p->accountDisplayName() + " needs attention";
-        }
-        return QString();
-    };
-
-    QStringList parts;
     int connectedCount = 0;
-    int syncingCount = 0;
-    int errorCount = 0;
+    int syncingCount   = 0;
+    int errorCount     = 0;
 
     const QVector<CalendarProvider*> providers = m_sync->providers();
-    for (auto* provider : providers) {
-        const QString label = stateLabel(provider);
-        if (!label.isEmpty())
-            parts << label;
-
-        if (provider->isAuthenticated())
-            ++connectedCount;
-        if (provider->connectionState() == CalendarProvider::Syncing
-            || provider->connectionState() == CalendarProvider::Connecting)
-            ++syncingCount;
-        if (provider->connectionState() == CalendarProvider::Error)
-            ++errorCount;
+    for (auto* p : providers) {
+        if (p->isAuthenticated())                                 ++connectedCount;
+        if (p->connectionState() == CalendarProvider::Syncing ||
+            p->connectionState() == CalendarProvider::Connecting) ++syncingCount;
+        if (p->connectionState() == CalendarProvider::Error)      ++errorCount;
     }
 
+    // Footer status label
     if (connectedCount == 0) {
-        m_accountSummaryTitle->setText("No calendars connected");
-        m_accountSummaryMeta->setText("Connect Apple, CalDAV, Google, or Outlook calendars in Settings.");
-        m_syncStatus->setText("Calendar connection and sync status will appear here.");
+        m_syncStatus->setText("No calendars connected — open Settings to connect");
+        m_btnSync->setEnabled(false);
+    } else if (errorCount > 0) {
+        m_syncStatus->setText(QString("%1 source%2 need attention")
+                              .arg(errorCount).arg(errorCount == 1 ? "" : "s"));
+        m_btnSync->setEnabled(true);
+    } else if (syncingCount > 0) {
+        m_syncStatus->setText("Syncing…");
         m_btnSync->setEnabled(false);
     } else {
         const auto lastSync = m_sync->lastSyncTime();
-        const QString timeStr = lastSync.isValid()
-            ? lastSync.toString("h:mm AP") : "never";
-        m_accountSummaryTitle->setText(QString("%1 calendar source%2 connected")
-                                       .arg(connectedCount)
-                                       .arg(connectedCount == 1 ? "" : "s"));
-        if (errorCount > 0) {
-            m_accountSummaryMeta->setText(QString("%1 source%2 need attention.")
-                                          .arg(errorCount)
-                                          .arg(errorCount == 1 ? "" : "s"));
-        } else if (syncingCount > 0) {
-            m_accountSummaryMeta->setText("Sync in progress. New events will appear automatically.");
-        } else {
-            m_accountSummaryMeta->setText(QString("Last full sync at %1.").arg(timeStr));
-        }
-
-        m_syncStatus->setText(parts.join("  •  "));
+        m_syncStatus->setText(lastSync.isValid()
+            ? "Last sync " + lastSync.toString("h:mm ap")
+            : QString("%1 calendar%2 connected")
+                  .arg(connectedCount).arg(connectedCount == 1 ? "" : "s"));
         m_btnSync->setEnabled(true);
     }
+
+    // Refresh the source list (connection state may have changed)
+    rebuildCalendarSources();
 }
 
 // ============================================================================
@@ -1047,6 +1240,14 @@ void MainWindow::openSettingsDialog(int initialPage) {
 
     dlg.exec();
     updateSyncStatus();
+
+    // Refresh AI availability — user may have just added an API key
+    if (m_dashboard) {
+        const bool chatOn = m_llmAssistant->isAvailable();
+        m_dashboard->setChatEnabled(true,
+            chatOn ? QString("Ask the assistant…")
+                   : QString("Add an API key in Settings to enable AI chat"));
+    }
 }
 
 // ============================================================================
@@ -1077,69 +1278,126 @@ void MainWindow::refreshAll() {
 
     const auto& allEvents = m_store->all();
 
-    m_timeline->setEvents(allEvents);
+    // Filter by source visibility (sidebar toggles)
+    QList<Event> visibleEvents;
+    visibleEvents.reserve(allEvents.size());
+    for (const Event& e : allEvents) {
+        const bool show = [&]() -> bool {
+            switch (e.source()) {
+            case Event::Local:       return m_sourceVisible.value("local",   true);
+            case Event::Google:      return m_sourceVisible.value("google",  true);
+            case Event::Outlook:     return m_sourceVisible.value("outlook", true);
+            case Event::AppleNative: return m_sourceVisible.value("apple",   true);
+            case Event::CalDAV: {
+                const QString key = "caldav_" + e.providerKey();
+                return m_sourceVisible.value(key, true);
+            }
+            }
+            return true;
+        }();
+        if (show) visibleEvents.append(e);
+    }
+
+    m_timeline->setEvents(visibleEvents);
     m_timeline->setDate(m_selectedDate);
     m_timeline->clearSelection();
 
     if (m_timelineStack->currentIndex() == 1) {
         m_weekTimeline->setWeekContaining(m_selectedDate);
-        m_weekTimeline->setEvents(allEvents);
+        m_weekTimeline->setEvents(visibleEvents);
     }
 
-    m_dashboard->refresh(m_selectedDate, allEvents);
-
-    // Day event mini-list (popover)
-    if (m_dayEventCard && m_dayEventList) {
-        // Collect events for selected day
-        QVector<const Event*> dayEvents;
-        for (const auto& e : allEvents)
-            if (e.isOnDate(m_selectedDate)) dayEvents.append(&e);
-
-        if (dayEvents.isEmpty()) {
-            m_dayEventCard->hide();
-        } else {
-            // Rebuild the list rows
-            QLayout* old = m_dayEventList->layout();
-            if (old) {
-                QLayoutItem* child;
-                while ((child = old->takeAt(0)) != nullptr) {
-                    delete child->widget();
-                    delete child;
-                }
-            }
-            auto* lay = qobject_cast<QVBoxLayout*>(m_dayEventList->layout());
-            if (!lay) lay = new QVBoxLayout(m_dayEventList);
-
-            const QString title = m_selectedDate == QDate::currentDate()
-                ? "TODAY" : m_selectedDate.toString("ddd d MMM").toUpper();
-            m_dayEventTitle->setText(title);
-
-            for (const Event* ev : dayEvents) {
-                auto* row = new QWidget;
-                auto* rl = new QHBoxLayout(row);
-                rl->setContentsMargins(0, 2, 0, 2);
-                rl->setSpacing(6);
-
-                // Color dot
-                auto* dot = new QFrame;
-                dot->setFixedSize(8, 8);
-                const QColor col = ev->getColor().isValid() ? ev->getColor() : QColor("#6366f1");
-                dot->setStyleSheet(QString("background:%1; border-radius:4px;").arg(col.name()));
-                rl->addWidget(dot);
-
-                // Time + title
-                auto* lbl = new QLabel(ev->getStartTime().time().toString("h:mm ap") + "  " + ev->getTitle());
-                lbl->setFont(Theme::Font::base());
-                lbl->setWordWrap(false);
-                rl->addWidget(lbl, 1);
-                lay->addWidget(row);
-            }
-
-            m_dayEventCard->show();
-        }
-    }
+    m_dashboard->refresh(m_selectedDate, visibleEvents);
 
     refreshMonthTitle();
+
+    // ── Sidebar day event list (below mini calendar) ─────────────────────
+    if (m_calEventDateLabel && m_calEventList) {
+        const QDate today = QDate::currentDate();
+
+        // Date label: "THURSDAY APR 16"
+        m_calEventDateLabel->setText(
+            m_selectedDate.toString("dddd MMM d").toUpper());
+
+        // Relative label
+        if (m_calEventRelLabel) {
+            const int diff = today.daysTo(m_selectedDate);
+            QString rel;
+            if      (diff == 0)  rel = "TODAY";
+            else if (diff == 1)  rel = "TOMORROW";
+            else if (diff == -1) rel = "YESTERDAY";
+            else if (diff >  0)  rel = QString("%1 DAYS FROM NOW").arg(diff);
+            else                 rel = QString("%1 DAYS AGO").arg(-diff);
+            m_calEventRelLabel->setText(rel);
+        }
+
+        // Clear and rebuild event rows
+        auto* listLay = qobject_cast<QVBoxLayout*>(m_calEventList->layout());
+        if (listLay) {
+            while (auto* item = listLay->takeAt(0)) {
+                delete item->widget();
+                delete item;
+            }
+        } else {
+            listLay = new QVBoxLayout(m_calEventList);
+            listLay->setContentsMargins(0, 0, 0, 0);
+            listLay->setSpacing(4);
+        }
+
+        int count = 0;
+        for (const auto& ev : m_store->all()) {
+            if (!ev.isOnDate(m_selectedDate)) continue;
+            if (++count > 5) break;
+
+            auto* row = new QWidget;
+            auto* rl  = new QHBoxLayout(row);
+            rl->setContentsMargins(0, 2, 0, 2);
+            rl->setSpacing(8);
+
+            // Colored left bar (like iOS screenshot)
+            auto* bar = new QFrame;
+            bar->setFixedSize(3, 34);
+            const QColor col = ev.getColor().isValid()
+                ? ev.getColor() : QColor("#6366f1");
+            bar->setStyleSheet(
+                QString("background:%1; border-radius:2px;").arg(col.name()));
+            rl->addWidget(bar);
+
+            // Title + time stacked
+            auto* textCol = new QWidget;
+            auto* tl      = new QVBoxLayout(textCol);
+            tl->setContentsMargins(0, 0, 0, 0);
+            tl->setSpacing(0);
+
+            auto* titleLbl = new QLabel(ev.getTitle());
+            QFont tf = Theme::Font::base();
+            tf.setPointSizeF(11.0);
+            tf.setWeight(QFont::DemiBold);
+            titleLbl->setFont(tf);
+            titleLbl->setWordWrap(false);
+            tl->addWidget(titleLbl);
+
+            auto* timeLbl = new QLabel(
+                ev.getStartTime().time().toString("h:mm ap"));
+            QFont sf = Theme::Font::base();
+            sf.setPointSizeF(9.5);
+            timeLbl->setFont(sf);
+            timeLbl->setStyleSheet("color: #3d5780;");
+            tl->addWidget(timeLbl);
+
+            rl->addWidget(textCol, 1);
+            listLay->addWidget(row);
+        }
+
+        if (count == 0) {
+            auto* emptyLbl = new QLabel("No events");
+            QFont ef = Theme::Font::base();
+            ef.setPointSizeF(10.5);
+            emptyLbl->setFont(ef);
+            emptyLbl->setStyleSheet("color: #3d5780;");
+            listLay->addWidget(emptyLbl);
+        }
+    }
 
     m_selectedEventIndex = -1;
     updateButtonStates();
@@ -1148,35 +1406,95 @@ void MainWindow::refreshAll() {
 void MainWindow::runAutoAI() {
     if (!m_selectedDate.isValid()) return;
 
-    // Always run deterministic analysis for metrics (fast, synchronous)
+    // 1. Always run deterministic engine for metrics (arc gauges)
     auto analysis = m_scheduler->analyzeDay(m_selectedDate, m_store->all());
     m_dashboard->refreshFromAnalysis(analysis.summary, analysis.suggestions,
                                       analysis.workload, analysis.balance,
                                       analysis.freeMinutes, analysis.freePercent);
 
-    // If LLM is available, fire async request to upgrade summary + suggestions
+    // 2. Run the local planner (smarter — produces deep-work + habit proposals)
+    const QDate capturedDate = m_selectedDate;
+    m_localAssistant->analyze(capturedDate, m_store->all(),
+        [this, capturedDate](const AssistantResponse& resp) {
+            if (m_selectedDate != capturedDate) return;
+            m_dashboard->refreshFromAssistant(resp.summary, resp.suggestions);
+        });
+
+    // 3. If LLM is configured, upgrade the summary + suggestions async
     if (m_llmAssistant->isAvailable()) {
-        const QDate capturedDate = m_selectedDate;
         m_llmAssistant->analyze(capturedDate, m_store->all(),
             [this, capturedDate](const AssistantResponse& resp) {
                 if (m_selectedDate != capturedDate || !resp.fromLLM) return;
                 m_dashboard->refreshFromAssistant(resp.summary, resp.suggestions);
-
-                // Offer to schedule any SCHEDULE: commands from the LLM
-                for (const auto& req : resp.scheduleRequests) {
-                    QMessageBox box(this);
-                    box.setWindowTitle("Schedule suggestion");
-                    box.setText(QString("The assistant suggests scheduling:\n\"%1\" at %2\n\nAdd it to your calendar?")
-                                .arg(req.title, req.time.toString("h:mm ap")));
-                    auto* yes = box.addButton("Add Event", QMessageBox::AcceptRole);
-                    box.addButton(QMessageBox::No);
-                    box.exec();
-                    if (box.clickedButton() == yes) {
-                        openAddDialogAt(capturedDate, req.time);
-                    }
-                }
             });
     }
+
+    // Update chat placeholder (composer stays enabled — if no key, we reply
+    // inline telling the user to add one)
+    if (m_dashboard) {
+        const bool chatOn = m_llmAssistant->isAvailable();
+        m_dashboard->setChatEnabled(true,
+            chatOn ? QString("Ask the assistant…")
+                   : QString("Add an API key in Settings to enable AI chat"));
+    }
+}
+
+// ============================================================================
+// Chat handler — natural-language scheduling
+// ============================================================================
+
+void MainWindow::onChatMessage(const QString& text) {
+    if (text.trimmed().isEmpty()) return;
+
+    if (!m_llmAssistant->isAvailable()) {
+        m_dashboard->appendChatAssistant(
+            "Chat needs an AI provider. Open Settings and add an API key.");
+        return;
+    }
+
+    const QDate today = m_selectedDate.isValid() ? m_selectedDate : QDate::currentDate();
+
+    const int pendingId = m_dashboard->appendChatPending();
+    m_llmAssistant->chat(text, today, m_store->all(),
+        [this, pendingId](const ChatReply& r) {
+            m_dashboard->resolveChatPending(pendingId,
+                r.reply.isEmpty() ? QStringLiteral("Done.") : r.reply);
+
+            // Apply proposed actions
+            int added = 0;
+            QVector<Event> batch;
+            for (const auto& b : r.actions) {
+                if (!b.date.isValid() || !b.time.isValid()) continue;
+                QDateTime start(b.date, b.time);
+                QDateTime end = start.addSecs(qMax(5, b.durationMin) * 60);
+
+                QString descPrefix = b.category.isEmpty() ? "Other" : b.category;
+                QString desc = descPrefix + " :: " + b.reason;
+
+                QColor color;
+                switch (b.kind) {
+                case AssistantResponse::ProposedBlock::FocusBlock: color = QColor("#4f8cff"); break;
+                case AssistantResponse::ProposedBlock::HabitBlock: color = QColor("#22c55e"); break;
+                case AssistantResponse::ProposedBlock::BreakBlock: color = QColor("#eab308"); break;
+                case AssistantResponse::ProposedBlock::BufferBlock: color = QColor("#94a3b8"); break;
+                default: color = QColor("#a78bfa"); break;
+                }
+
+                Event ev(b.title, desc, start, end, color);
+                ev.setSource(Event::Local);
+                batch.append(ev);
+                ++added;
+            }
+
+            if (!batch.isEmpty()) {
+                m_store->addBatch(batch);
+                m_calendar->setEvents(m_store->all());
+                refreshAll();
+                m_dashboard->appendChatAssistant(
+                    QString("Added %1 event%2 to your calendar.")
+                        .arg(added).arg(added == 1 ? "" : "s"));
+            }
+        });
 }
 
 void MainWindow::updateButtonStates() {
@@ -1200,12 +1518,48 @@ void MainWindow::applyTheme(ThemeMode mode) {
     updateCalendarStyle();
     refreshMonthTitle();
 
+    // Month title: accent color in dark, primary text in light
+    if (m_monthTitle) {
+        m_monthTitle->setStyleSheet(isDark
+            ? "color: #4f8cff;"
+            : "color: " + c.accent.name() + ";");
+    }
+    if (m_yearLabel) {
+        m_yearLabel->setStyleSheet(isDark
+            ? "color: #3d5780;"
+            : "color: " + c.textTertiary.name() + ";");
+    }
+
+    // Sidebar separators
+    const QString sidebarSepStyle = isDark
+        ? "background: #0f1520; border: none;"
+        : "background: " + c.border.name() + "; border: none;";
+    for (auto* f : findChildren<QFrame*>()) {
+        if (f->frameShape() == QFrame::HLine && f->objectName().isEmpty())
+            f->setStyleSheet(sidebarSepStyle);
+    }
+
     // Update separator colors
     const QString sepStyle = "background: " + c.borderSubtle.name() + "; border: none;";
     if (auto* toolSep = findChild<QFrame*>("toolbarSep"))
         toolSep->setStyleSheet(sepStyle);
 
-    // Update sync status text color
+    // Sync status label
+    if (m_syncStatus) {
+        m_syncStatus->setStyleSheet(isDark
+            ? "color: #3d5780;"
+            : "color: " + c.textTertiary.name() + ";");
+    }
+    if (m_calEventRelLabel) {
+        m_calEventRelLabel->setStyleSheet(isDark
+            ? "color: #3d5780;"
+            : "color: " + c.textTertiary.name() + ";");
+    }
+
+    // Rebuild source list with correct theme colors
+    rebuildCalendarSources();
+
+    // Update sync status text color (palette fallback)
     if (m_syncStatus) {
         auto pal = m_syncStatus->palette();
         pal.setColor(QPalette::WindowText, c.textTertiary);
@@ -1239,9 +1593,12 @@ void MainWindow::updateCalendarStyle() {
 void MainWindow::refreshMonthTitle() {
     if (!m_calendar || !m_monthTitle) return;
     const int y = m_calendar->yearShown();
-    const int m = m_calendar->monthShown();
-    const QString name = QLocale().standaloneMonthName(m, QLocale::LongFormat);
-    m_monthTitle->setText(QString("%1 %2").arg(name, QString::number(y)));
+    const int mo = m_calendar->monthShown();
+    // Month name ALL-CAPS, colored accent when dark
+    const QString name = QLocale().standaloneMonthName(mo, QLocale::LongFormat).toUpper();
+    m_monthTitle->setText(name);
+    if (m_yearLabel)
+        m_yearLabel->setText(QString::number(y));
 }
 
 // ============================================================================

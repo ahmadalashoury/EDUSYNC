@@ -291,10 +291,16 @@ inline QString buildStylesheet(const Colors& c) {
             background: %1;
         }
 
-        QFrame#accountHubCard, QFrame#settingsCard, QFrame#calendarCard {
+        QFrame#accountHubCard, QFrame#settingsCard {
             background: %24;
             border: 1px solid %25;
             border-radius: %13px;
+        }
+
+        QFrame#calendarCard {
+            background: transparent;
+            border: none;
+            border-radius: 0;
         }
 
         /* ── Scrollbars ─────────────────────────────────────── */
@@ -573,11 +579,11 @@ inline QString buildStylesheet(const Colors& c) {
             background: transparent;
             border: none;
             padding: 18px 14px;
+            outline: 0;
         }
         QListWidget#settingsSidebar::item {
-            margin: 4px 0;
-            padding: 13px 16px;
-            border-radius: 14px;
+            padding: 10px 16px;
+            border-radius: 10px;
             font-size: 13px;
             font-weight: 600;
         }

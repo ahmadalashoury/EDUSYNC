@@ -4,12 +4,15 @@
 #include <QDate>
 #include <QVector>
 #include <QStringList>
+#include <QHash>
 #include "Event.h"
 
 class StatCard;
 class QLabel;
 class QPushButton;
 class QVBoxLayout;
+class QLineEdit;
+class QFrame;
 
 // ============================================================================
 // DashboardWidget — AI assistant panel (right panel)
@@ -43,8 +46,19 @@ public:
     void refreshFromAssistant(const QString& summary,
                               const QStringList& suggestions);
 
+    // Chat interface
+    void appendChatUser(const QString& text);
+    void appendChatAssistant(const QString& text);
+    /// Show a temporary "thinking" bubble; returns an id to replace later.
+    int  appendChatPending();
+    /// Replace a pending bubble with the final text (or append if id invalid).
+    void resolveChatPending(int id, const QString& text);
+    void clearChat();
+    void setChatEnabled(bool enabled, const QString& placeholder);
+
 signals:
     void applyAISuggestions();
+    void userChatMessage(const QString& text);
 
 private:
     void rebuildUI(const QDate& date,
@@ -61,6 +75,14 @@ private:
     StatCard*    m_metricsCard  = nullptr;
     StatCard*    m_suggestCard  = nullptr;
     QPushButton* m_applyBtn     = nullptr;
+
+    // Chat
+    QFrame*      m_chatCard     = nullptr;
+    QVBoxLayout* m_chatLog      = nullptr;
+    QLineEdit*   m_chatInput    = nullptr;
+    QPushButton* m_chatSendBtn  = nullptr;
+    QHash<int, QLabel*> m_pendingBubbles;
+    int          m_nextPendingId = 1;
 
     // Cache last analysis for assistant overlay
     int m_lastWorkload    = 0;

@@ -35,11 +35,12 @@ static inline QDate dateForIndex(QTableView* view, const QModelIndex& idx,
     return QDate(shownYear, shownMonth, day);
 }
 
-// Circle rect for the day number badge — centered horizontally near the top
+// Circle rect for the day number badge — centered in cell (iOS pill style)
 static QRect dayCircleRect(const QRect& cell) {
-    const int sz = qMin(30, qMax(24, qMin(cell.width(), cell.height()) / 2));
+    const int sz = qMin(cell.width() - 4, cell.height() - 6);
     const int cx = cell.center().x();
-    return QRect(cx - sz / 2, cell.top() + 7, sz, sz);
+    const int cy = cell.center().y() - 2; // slightly above center to leave bar room
+    return QRect(cx - sz / 2, cy - sz / 2, sz, sz);
 }
 
 // ============================================================================
@@ -121,36 +122,23 @@ void CalendarWidget::styleHeader() {
     if (!m_hHeader) return;
 
     const auto c = m_light ? Theme::light() : Theme::dark();
-    const QColor glassTop = m_light ? QColor(255, 255, 255, 230) : QColor(24, 30, 42, 228);
-    const QColor glassBottom = m_light ? QColor(246, 243, 238, 210) : QColor(12, 16, 24, 240);
-    const QColor glowBorder = m_light ? QColor(70, 134, 255, 34) : QColor(87, 214, 255, 62);
-    const QColor headerText = m_light ? c.headerText : QColor("#bfeaff");
+    const QColor headerText = m_light ? c.headerText : QColor("#3d5780");
 
     m_hHeader->setSectionsClickable(false);
     m_hHeader->setHighlightSections(false);
     m_hHeader->setSectionResizeMode(QHeaderView::Stretch);
     m_hHeader->setDefaultAlignment(Qt::AlignCenter);
-    m_hHeader->setFixedHeight(36);
+    m_hHeader->setFixedHeight(22);
 
     m_hHeader->setStyleSheet(QString(
-        "QHeaderView {"
-        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %1, stop:1 %2);"
-        "  border: 1px solid %3;"
-        "  border-left: 0;"
-        "  border-right: 0;"
-        "}"
+        "QHeaderView { background: transparent; border: 0; }"
         "QHeaderView::section {"
-        "  background: transparent; color: %4; border: 0;"
-        "  border-bottom: 1px solid %5;"
-        "  padding: 8px 0 7px 0; font-weight: 600;"
-        "  text-transform: uppercase; letter-spacing: 0.14em;"
+        "  background: transparent; color: %1; border: 0;"
+        "  padding: 3px 0; font-size: 9px; font-weight: 700;"
+        "  letter-spacing: 0.10em;"
         "}"
         "QHeaderView::section:hover { background: transparent; }")
-        .arg(glassTop.name(QColor::HexArgb),
-             glassBottom.name(QColor::HexArgb),
-             glowBorder.name(QColor::HexArgb),
-             headerText.name(),
-             c.headerBorder.name()));
+        .arg(headerText.name()));
 
     if (auto* vh = m_view ? m_view->verticalHeader() : nullptr)
         vh->setSectionResizeMode(QHeaderView::Stretch);
@@ -290,75 +278,63 @@ void CalendarWidget::paintCell(QPainter* p, const QRect& rect, QDate date) const
     const bool darkMode   = !m_light;
 
     const QRect circle = dayCircleRect(rect);
-    const QRect cellBg = rect.adjusted(1, 1, -1, -1);
-    const QRectF glassRect = cellBg.adjusted(2, 2, -2, -2);
 
-    if (darkMode) {
-        QLinearGradient cellGlass(glassRect.topLeft(), glassRect.bottomLeft());
-        cellGlass.setColorAt(0.0, QColor(255, 255, 255, isSelected ? 10 : 6));
-        cellGlass.setColorAt(1.0, QColor(0, 0, 0, 0));
-        p->setBrush(cellGlass);
-        p->drawRoundedRect(glassRect, Theme::Radius::M, Theme::Radius::M);
-    }
-
-    // Hover: subtle full-cell background
-    if (isHovered && !isSelected) {
-        QColor hov = darkMode ? QColor(83, 214, 255, 18) : QColor(19, 34, 77, 10);
-        p->setBrush(hov);
-        p->drawRoundedRect(cellBg, Theme::Radius::M, Theme::Radius::M);
-    }
-
-    // Selected: ambient neon glow + glassy cell
-    if (isSelected) {
-        QColor tint = darkMode ? QColor(63, 179, 255, 26) : QColor(c.accent.red(), c.accent.green(), c.accent.blue(), 18);
-        p->setBrush(tint);
-        p->drawRoundedRect(cellBg, Theme::Radius::M, Theme::Radius::M);
-
-        if (darkMode) {
-            QRadialGradient halo(circle.center(), circle.width() * 0.95);
-            halo.setColorAt(0.0, QColor(112, 233, 255, 165));
-            halo.setColorAt(0.35, QColor(56, 171, 255, 84));
-            halo.setColorAt(1.0, QColor(56, 171, 255, 0));
-            p->setBrush(halo);
-            p->drawEllipse(circle.adjusted(-9, -9, 9, 9));
-        }
-
-        QLinearGradient selectedFill(circle.topLeft(), circle.bottomRight());
-        selectedFill.setColorAt(0.0, darkMode ? QColor("#74e3ff") : QColor("#3b82f6"));
-        selectedFill.setColorAt(1.0, darkMode ? QColor("#2f79ff") : QColor("#1d4ed8"));
-        p->setBrush(selectedFill);
+    // ── Dark mode only: dark navy disc on every in-month day ────────────
+    if (inMonth && !isToday && !isSelected && darkMode) {
+        p->setBrush(QColor(18, 26, 42));
         p->drawEllipse(circle);
-        p->setPen(QPen(darkMode ? QColor(219, 248, 255, 170) : QColor(255, 255, 255, 180), 1.1));
-        p->setBrush(Qt::NoBrush);
-        p->drawEllipse(circle.adjusted(1, 1, -1, -1));
-        p->setPen(Qt::NoPen);
-    }
-    // Today: softer luminous ring
-    else if (isToday && inMonth) {
-        QColor todayWash = darkMode ? QColor(68, 196, 255, 22) : QColor(c.todayBg.red(), c.todayBg.green(), c.todayBg.blue(), 220);
-        p->setBrush(todayWash);
-        p->drawEllipse(circle.adjusted(-3, -3, 3, 3));
-        p->setPen(QPen(darkMode ? QColor(108, 225, 255, 150) : c.todayText, darkMode ? 1.5 : 1.2));
-        p->setBrush(Qt::NoBrush);
-        p->drawEllipse(circle.adjusted(1, 1, -1, -1));
-        p->setPen(Qt::NoPen);
     }
 
-    // Day number — centered in circle
+    // ── Hover: brighten the disc slightly ────────────────────────────────
+    if (isHovered && inMonth && !isSelected && !isToday) {
+        QColor hov = darkMode ? QColor(79, 140, 255, 22) : QColor(0, 0, 0, 10);
+        p->setBrush(hov);
+        p->drawEllipse(circle);
+    }
+
+    // ── Selected: bright accent fill with outer glow ─────────────────────
+    if (isSelected && !isToday) {
+        if (darkMode) {
+            // soft glow halo
+            QColor glow = c.accent; glow.setAlpha(30);
+            p->setBrush(glow);
+            p->drawEllipse(circle.adjusted(-4, -4, 4, 4));
+        }
+        p->setBrush(c.accent);
+        p->drawEllipse(circle);
+    }
+
+    // ── Today: neon bloom glow rings + bright solid core ─────────────────
+    if (isToday && inMonth) {
+        if (darkMode) {
+            struct Ring { int ex; int alpha; };
+            constexpr Ring rings[] = {{12,3},{8,7},{5,14},{3,22}};
+            for (const auto& r : rings) {
+                QColor glow = c.todayBg; glow.setAlpha(r.alpha);
+                p->setBrush(glow);
+                p->drawEllipse(circle.adjusted(-r.ex, -r.ex, r.ex, r.ex));
+            }
+        }
+        p->setBrush(isSelected ? c.accent.lighter(115) : c.todayBg);
+        p->drawEllipse(circle);
+    }
+
+    // ── Day number ────────────────────────────────────────────────────────
     QColor dayFg;
-    if (isSelected)               dayFg = c.accentText;
-    else if (isToday && inMonth)  dayFg = c.todayText;
-    else if (inMonth)             dayFg = c.text;
-    else                          dayFg = c.spillover;
+    if      (isSelected || (isSelected && isToday)) dayFg = c.accentText;
+    else if (isToday && inMonth)                    dayFg = c.todayText;
+    else if (inMonth)                               dayFg = darkMode ? QColor("#c8d8f0") : c.text;
+    else                                            dayFg = c.spillover;
 
     p->setPen(dayFg);
     QFont f = p->font();
-    f.setPointSizeF(11.0);
-    f.setWeight(inMonth ? QFont::DemiBold : QFont::Normal);
+    f.setPointSizeF(10.5);
+    f.setWeight((isToday || isSelected) ? QFont::Bold
+                : (inMonth ? QFont::Medium : QFont::Normal));
     p->setFont(f);
     p->drawText(circle, Qt::AlignCenter, QString::number(date.day()));
 
-    // Event dots below number (current month only, using each event's color)
+    // ── Event bars (tiny, at very bottom of cell) ─────────────────────────
     if (inMonth)
         drawEventDots(*p, rect, date);
 
@@ -382,28 +358,21 @@ void CalendarWidget::drawEventDots(QPainter& p, const QRect& cell, const QDate& 
     }
     if (colors.isEmpty()) return;
 
-    const QRect circle = dayCircleRect(cell);
-    const int dotR = 2;
-    const int gap  = darkMode ? 6 : 4;
-    const int n    = colors.size();
-    const int totalW = n * dotR * 2 + (n - 1) * gap;
-    const int startX = circle.center().x() - totalW / 2 + dotR;
-    const int cy = circle.bottom() + (darkMode ? 7 : 5);
+    const int n      = colors.size();
+    const int barH   = 2;
+    const int gap    = 2;
+    const int padX   = 5;
+    const int totalW = cell.width() - padX * 2;
+    const int segW   = qMax(3, (totalW - gap * (n - 1)) / n);
+    const int startX = cell.left() + padX;
+    const int y      = cell.bottom() - 3;  // at very bottom edge of cell
 
     p.setPen(Qt::NoPen);
     for (int i = 0; i < n; ++i) {
-        const QPoint center(startX + i * (dotR * 2 + gap), cy);
-        if (darkMode) {
-            QRadialGradient glow(center, 5.5);
-            QColor glowColor = colors[i];
-            glowColor.setAlpha(120);
-            glow.setColorAt(0.0, glowColor);
-            glow.setColorAt(1.0, QColor(glowColor.red(), glowColor.green(), glowColor.blue(), 0));
-            p.setBrush(glow);
-            p.drawEllipse(QRectF(center.x() - 5.5, center.y() - 5.5, 11, 11));
-        }
-        p.setBrush(colors[i].lighter(darkMode ? 135 : 100));
-        p.drawEllipse(center, dotR, dotR);
+        QColor bar = colors[i];
+        bar.setAlpha(darkMode ? 210 : 180);
+        p.setBrush(bar);
+        p.drawRoundedRect(QRectF(startX + i * (segW + gap), y, segW, barH), 1.0, 1.0);
     }
 }
 

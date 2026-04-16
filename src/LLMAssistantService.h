@@ -1,23 +1,20 @@
 #pragma once
 
 #include "AssistantService.h"
+#include <QJsonArray>
 #include <QNetworkAccessManager>
 
 // ============================================================================
-// LLMAssistantService — sends schedule context to an LLM for rich analysis
+// LLMAssistantService — LLM-backed scheduler + chat
 //
-// Supports any OpenAI-compatible chat completions API (OpenAI, Anthropic
-// via proxy, Ollama local, etc). Configured via:
-//   - API key (stored in QSettings)
-//   - Endpoint URL (defaults to OpenAI)
-//   - Model name (defaults to gpt-4o-mini for cost efficiency)
+// Two capabilities:
+//   analyze(date, events) → structured plan (summary, suggestions, proposed
+//                            blocks) using a JSON schema
+//   chat(userMessage)      → conversational event creation ("schedule lunch
+//                            with mom tomorrow at noon") with a rolling
+//                            conversation history
 //
-// The prompt is carefully scoped: it receives only the day's event titles,
-// times, and categories — no descriptions, no personal data beyond what's
-// on the calendar. The LLM produces a summary and suggestions.
-//
-// If the API call fails or the key is missing, the service reports
-// isAvailable() = false and the UI falls back to LocalAssistantService.
+// OpenAI-compatible chat/completions API. Configured via QSettings.
 // ============================================================================
 
 class LLMAssistantService : public AssistantService {
@@ -25,34 +22,54 @@ class LLMAssistantService : public AssistantService {
 public:
     explicit LLMAssistantService(QObject* parent = nullptr);
 
-    bool isAvailable() const override;
+    bool    isAvailable() const override;
     QString providerName() const override;
 
     void analyze(const QDate& date,
                  const QVector<Event>& events,
                  Callback callback) override;
 
+    // Chat interface
+    bool supportsChat() const override { return true; }
+    void chat(const QString& userMessage,
+              const QDate& today,
+              const QVector<Event>& context,
+              ChatCallback callback) override;
+    void resetChat() override;
+
     // Configuration
     void setApiKey(const QString& key);
     void setEndpoint(const QString& url);
     void setModel(const QString& model);
 
-    QString apiKey() const;
+    QString apiKey()   const;
     QString endpoint() const;
-    QString model() const;
+    QString model()    const;
 
-    /// Load/save configuration from QSettings
     void loadSettings();
     void saveSettings() const;
 
 private:
-    QString buildPrompt(const QDate& date, const QVector<Event>& events) const;
-    AssistantResponse parseResponse(const QString& text) const;
+    QString buildPlanPrompt(const QDate& date, const QVector<Event>& events) const;
+    QString buildChatSystemPrompt(const QDate& today,
+                                  const QVector<Event>& context) const;
+    AssistantResponse parseAnalyzeResponse(const QString& text) const;
+    ChatReply         parseChatResponse(const QString& text) const;
+
+    // Low-level: POST to endpoint with given messages array, return content text.
+    void postChat(const QJsonArray& messages,
+                  int maxTokens,
+                  double temperature,
+                  std::function<void(const QString& content, const QString& error)> cb);
 
     QNetworkAccessManager* m_nam = nullptr;
     QString m_apiKey;
     QString m_endpoint;
     QString m_model;
+
+    // Rolling chat history (user + assistant pairs, not including system msg)
+    QJsonArray m_chatHistory;
+    static constexpr int kMaxHistoryMsgs = 16;
 
     static constexpr const char* kDefaultEndpoint = "https://api.openai.com/v1/chat/completions";
     static constexpr const char* kDefaultModel    = "gpt-4o-mini";

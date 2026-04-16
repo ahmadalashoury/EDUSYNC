@@ -134,9 +134,9 @@ SettingsDialog::SettingsDialog(GoogleCalendarProvider* google,
     m_sidebar->setFocusPolicy(Qt::NoFocus);
     for (const QString& label : {"General", "Appearance", "Accounts", "Assistant", "Advanced"}) {
         auto* item = new QListWidgetItem(label, m_sidebar);
-        item->setSizeHint(QSize(-1, 46));
+        item->setSizeHint(QSize(-1, 40));
     }
-    m_sidebar->setSpacing(2);
+    m_sidebar->setSpacing(4);
     root->addWidget(m_sidebar);
 
     auto* divider = new QFrame;

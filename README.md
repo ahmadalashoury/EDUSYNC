@@ -15,7 +15,8 @@ The current app is focused on feeling like one polished product again:
 - Month calendar in the left rail with account status and quick context
 - Day and week timeline views in the center workspace
 - Futuristic event editor for creating and editing blocks
-- Dashboard panel for workload, free-time, and suggestion summaries
+- Refined dark/light visual system across the shell, calendar, and editor
+- Dashboard assistant panel for workload, free-time, suggestions, and chat
 
 ### Event management
 - Create, edit, and delete local events
@@ -34,7 +35,8 @@ The current app is focused on feeling like one polished product again:
 ### Assistant features
 - Local schedule analysis
 - Suggestions based on open time and event balance
-- Optional external LLM key for assistant features
+- Natural-language assistant chat for scheduling and calendar questions
+- Optional external LLM key for richer assistant features
 
 ## Current Behavior And Limits
 
@@ -46,6 +48,7 @@ This section is intentionally honest.
 - Google and Outlook account linking
 - CalDAV account setup and sync discovery
 - Unified settings and account management
+- Interactive assistant panel with local insights and optional LLM chat
 
 ### Still limited
 - Apple and CalDAV outbound create/edit parity is not complete yet
@@ -92,11 +95,14 @@ To run the binary directly:
 - `src/CalendarWidget.cpp`: month calendar surface
 - `src/DayTimelineWidget.cpp`: day timeline rendering
 - `src/WeekTimelineWidget.cpp`: week timeline rendering
+- `src/DashboardWidget.cpp`: right-side assistant, metrics, suggestions, and chat
 - `src/SyncManager.cpp`: provider lifecycle and sync orchestration
 - `src/AppleNativeProvider.mm`: Apple Calendar and Reminders integration
 - `src/GoogleCalendarProvider.cpp`: Google OAuth and calendar sync
 - `src/OutlookCalendarProvider.cpp`: Outlook OAuth and calendar sync
 - `src/CalDAVProvider.cpp`: CalDAV account handling and sync
+- `src/LLMAssistantService.cpp`: OpenAI-compatible assistant analysis and chat
+- `src/LocalAssistantService.cpp`: local fallback assistant and planning logic
 - `src/Theme.h`: visual tokens and global styling
 
 ## Privacy Notes

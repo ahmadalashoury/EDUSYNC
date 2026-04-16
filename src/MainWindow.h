@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QDate>
 #include <QDateTime>
+#include <QMap>
 
 class QLabel;
 class QPushButton;
@@ -70,6 +71,9 @@ private:
     void updateButtonStates();
     void updateSyncStatus();
 
+    // AI chat handling
+    void onChatMessage(const QString& text);
+
     // Data layer
     EventStore*            m_store     = nullptr;
     SchedulerEngine*       m_scheduler = nullptr;
@@ -114,11 +118,15 @@ private:
 
     QLabel* m_dayLabel   = nullptr;
     QLabel* m_syncStatus = nullptr;
-    QLabel* m_accountSummaryTitle = nullptr;
-    QLabel* m_accountSummaryMeta  = nullptr;
+    QLabel* m_yearLabel  = nullptr;   // year sub-label in mini calendar header
 
-    // Day event list (popover in left rail)
-    QFrame*  m_dayEventCard   = nullptr;
-    QLabel*  m_dayEventTitle  = nullptr;
-    QWidget* m_dayEventList   = nullptr;
+    // Left rail — Zoho-style sidebar
+    QWidget* m_calSourcesContainer = nullptr;
+    QMap<QString, bool> m_sourceVisible;
+    void rebuildCalendarSources();
+
+    // Mini calendar day event list
+    QLabel*  m_calEventDateLabel = nullptr;
+    QLabel*  m_calEventRelLabel  = nullptr;
+    QWidget* m_calEventList      = nullptr;
 };

@@ -1,22 +1,21 @@
 #pragma once
 
-#include <QScrollArea>
+#include <QWidget>
 #include <QDate>
 #include <QVector>
 #include "Event.h"
 
+class QScrollArea;
+
 // ============================================================================
 // WeekTimelineWidget — 7-column week timeline view
 //
-// Mirrors DayTimelineWidget structure: QScrollArea + custom-painted WeekCanvas.
-// Shows Mon-Sun for the week containing the given date, with:
-//   - Hour labels and horizontal grid lines
-//   - Column header per day ("Mon 14")
-//   - Event blocks positioned by time within their day column
-//   - Current-time indicator in today's column only
+// Layout: fixed sticky header row (day names + date badges) on top, with a
+// QScrollArea beneath for the hourly grid and event blocks.  The header never
+// scrolls away.
 // ============================================================================
 
-class WeekTimelineWidget : public QScrollArea {
+class WeekTimelineWidget : public QWidget {
     Q_OBJECT
 public:
     explicit WeekTimelineWidget(QWidget* parent = nullptr);
@@ -29,8 +28,12 @@ signals:
     void emptySlotClicked(QDate date, QTime time);
 
 private:
+    class WeekHeader;
     class WeekCanvas;
-    WeekCanvas*    m_canvas    = nullptr;
-    QDate          m_weekStart;           // always Monday
+
+    WeekHeader*  m_header     = nullptr;
+    QScrollArea* m_scrollArea = nullptr;
+    WeekCanvas*  m_canvas     = nullptr;
+    QDate        m_weekStart;
     QVector<Event> m_allEvents;
 };

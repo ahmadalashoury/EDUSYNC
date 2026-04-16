@@ -5,7 +5,11 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLineEdit>
+#include <QFrame>
 #include <QScrollBar>
+#include <QTimer>
 #include <algorithm>
 #include <cmath>
 
@@ -61,8 +65,187 @@ DashboardWidget::DashboardWidget(QWidget* parent)
     connect(m_applyBtn, &QPushButton::clicked, this, &DashboardWidget::applyAISuggestions);
     m_mainLayout->addWidget(m_applyBtn);
 
+    m_mainLayout->addSpacing(Theme::Space::L);
+
+    // ── Chat card — natural-language scheduling ─────────────────────────────
+    m_chatCard = new QFrame(container);
+    m_chatCard->setObjectName("chatCard");
+    m_chatCard->setStyleSheet(
+        "QFrame#chatCard {"
+        "  background: rgba(79,140,255,0.04);"
+        "  border: 1px solid rgba(79,140,255,0.16);"
+        "  border-radius: 14px;"
+        "}");
+    auto* chatLay = new QVBoxLayout(m_chatCard);
+    chatLay->setContentsMargins(Theme::Space::M, Theme::Space::M,
+                                 Theme::Space::M, Theme::Space::M);
+    chatLay->setSpacing(Theme::Space::S);
+
+    auto* chatTitle = new QLabel("Ask the assistant", m_chatCard);
+    QFont chatTitleF = Theme::Font::base();
+    chatTitleF.setWeight(QFont::DemiBold);
+    chatTitleF.setPointSizeF(11.5);
+    chatTitle->setFont(chatTitleF);
+    chatTitle->setStyleSheet("color: #c8d4e8;");
+    chatLay->addWidget(chatTitle);
+
+    auto* chatHint = new QLabel(
+        "Try: \"schedule lunch with mom tomorrow at noon\" or "
+        "\"block 2 hours of focus tomorrow morning\".", m_chatCard);
+    chatHint->setWordWrap(true);
+    QFont hintF = Theme::Font::caption();
+    hintF.setPointSizeF(10.0);
+    chatHint->setFont(hintF);
+    chatHint->setStyleSheet("color: #6b7a94;");
+    chatLay->addWidget(chatHint);
+
+    // Message log
+    auto* logHolder = new QWidget(m_chatCard);
+    m_chatLog = new QVBoxLayout(logHolder);
+    m_chatLog->setContentsMargins(0, Theme::Space::XS, 0, Theme::Space::XS);
+    m_chatLog->setSpacing(Theme::Space::XS);
+    m_chatLog->addStretch();
+    chatLay->addWidget(logHolder);
+
+    // Composer
+    auto* composer = new QWidget(m_chatCard);
+    auto* composerLay = new QHBoxLayout(composer);
+    composerLay->setContentsMargins(0, 0, 0, 0);
+    composerLay->setSpacing(Theme::Space::S);
+
+    m_chatInput = new QLineEdit(composer);
+    m_chatInput->setPlaceholderText("Ask the assistant…");
+    m_chatInput->setStyleSheet(
+        "QLineEdit {"
+        "  background: rgba(18,26,42,0.6);"
+        "  border: 1px solid rgba(79,140,255,0.22);"
+        "  border-radius: 10px;"
+        "  padding: 8px 12px;"
+        "  color: #dde6f4;"
+        "  selection-background-color: rgba(79,140,255,0.45);"
+        "}"
+        "QLineEdit:focus { border: 1px solid #4f8cff; }");
+
+    m_chatSendBtn = new QPushButton("Send", composer);
+    m_chatSendBtn->setObjectName("accentBtn");
+    m_chatSendBtn->setCursor(Qt::PointingHandCursor);
+    m_chatSendBtn->setFixedHeight(34);
+
+    composerLay->addWidget(m_chatInput, 1);
+    composerLay->addWidget(m_chatSendBtn);
+    chatLay->addWidget(composer);
+
+    auto sendFn = [this]() {
+        const QString text = m_chatInput->text().trimmed();
+        if (text.isEmpty()) return;
+        m_chatInput->clear();
+        appendChatUser(text);
+        emit userChatMessage(text);
+    };
+    connect(m_chatSendBtn, &QPushButton::clicked, this, sendFn);
+    connect(m_chatInput,   &QLineEdit::returnPressed, this, sendFn);
+
+    m_mainLayout->addWidget(m_chatCard);
+
     m_mainLayout->addStretch();
     setWidget(container);
+}
+
+// ============================================================================
+// Chat panel
+// ============================================================================
+
+static QLabel* makeBubble(const QString& text, bool fromUser, QWidget* parent) {
+    auto* bubble = new QLabel(text, parent);
+    bubble->setWordWrap(true);
+    bubble->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    QFont f = Theme::Font::base();
+    f.setPointSizeF(10.5);
+    bubble->setFont(f);
+    bubble->setStyleSheet(QString(
+        "QLabel {"
+        "  background: %1;"
+        "  border-radius: 10px;"
+        "  padding: 7px 11px;"
+        "  color: %2;"
+        "}")
+        .arg(fromUser ? "rgba(79,140,255,0.22)" : "rgba(255,255,255,0.04)")
+        .arg(fromUser ? "#dde6f4" : "#c8d4e8"));
+    bubble->setMaximumWidth(320);
+    return bubble;
+}
+
+void DashboardWidget::appendChatUser(const QString& text) {
+    if (!m_chatLog) return;
+    // Remove trailing stretch, add bubble, re-add stretch
+    auto* row = new QWidget;
+    auto* rowLay = new QHBoxLayout(row);
+    rowLay->setContentsMargins(0, 0, 0, 0);
+    rowLay->addStretch();
+    rowLay->addWidget(makeBubble(text, /*fromUser=*/true, row));
+    const int n = m_chatLog->count();
+    m_chatLog->insertWidget(n - 1, row);
+}
+
+void DashboardWidget::appendChatAssistant(const QString& text) {
+    if (!m_chatLog) return;
+    auto* row = new QWidget;
+    auto* rowLay = new QHBoxLayout(row);
+    rowLay->setContentsMargins(0, 0, 0, 0);
+    rowLay->addWidget(makeBubble(text, /*fromUser=*/false, row));
+    rowLay->addStretch();
+    const int n = m_chatLog->count();
+    m_chatLog->insertWidget(n - 1, row);
+
+    // Auto-scroll to bottom
+    QTimer::singleShot(0, this, [this]{
+        if (auto* vbar = verticalScrollBar()) vbar->setValue(vbar->maximum());
+    });
+}
+
+void DashboardWidget::clearChat() {
+    if (!m_chatLog) return;
+    // Remove everything except the trailing stretch
+    while (m_chatLog->count() > 1) {
+        QLayoutItem* it = m_chatLog->takeAt(0);
+        if (auto* w = it->widget()) w->deleteLater();
+        delete it;
+    }
+    m_pendingBubbles.clear();
+}
+
+int DashboardWidget::appendChatPending() {
+    if (!m_chatLog) return 0;
+    auto* row = new QWidget;
+    auto* rowLay = new QHBoxLayout(row);
+    rowLay->setContentsMargins(0, 0, 0, 0);
+    auto* bubble = makeBubble("…", /*fromUser=*/false, row);
+    rowLay->addWidget(bubble);
+    rowLay->addStretch();
+    const int n = m_chatLog->count();
+    m_chatLog->insertWidget(n - 1, row);
+
+    const int id = m_nextPendingId++;
+    m_pendingBubbles.insert(id, bubble);
+    return id;
+}
+
+void DashboardWidget::resolveChatPending(int id, const QString& text) {
+    auto it = m_pendingBubbles.find(id);
+    if (it == m_pendingBubbles.end()) {
+        appendChatAssistant(text);
+        return;
+    }
+    QLabel* bubble = it.value();
+    m_pendingBubbles.erase(it);
+    if (bubble) bubble->setText(text.isEmpty() ? QStringLiteral("Done.") : text);
+}
+
+void DashboardWidget::setChatEnabled(bool enabled, const QString& placeholder) {
+    if (!m_chatInput) return;
+    m_chatInput->setEnabled(enabled);
+    m_chatSendBtn->setEnabled(enabled);
+    if (!placeholder.isEmpty()) m_chatInput->setPlaceholderText(placeholder);
 }
 
 // ============================================================================

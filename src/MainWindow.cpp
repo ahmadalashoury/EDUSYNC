@@ -784,7 +784,27 @@ void MainWindow::buildUI() {
     toolbarLayout->setSpacing(Theme::Space::S);
 
     m_dayLabel = new QLabel;
-    m_dayLabel->setFont(Theme::Font::title());
+    QFont centerTitle = Theme::Font::heading();
+    centerTitle.setPointSizeF(26.0);
+    m_dayLabel->setFont(centerTitle);
+
+    m_btnPrevDay = new QPushButton(QString::fromUtf8("\xE2\x80\xB9"));
+    m_btnPrevDay->setObjectName("navBtn");
+    m_btnPrevDay->setFixedSize(28, 28);
+    m_btnPrevDay->setCursor(Qt::PointingHandCursor);
+    m_btnPrevDay->setToolTip("Previous day");
+
+    m_btnNextDay = new QPushButton(QString::fromUtf8("\xE2\x80\xBA"));
+    m_btnNextDay->setObjectName("navBtn");
+    m_btnNextDay->setFixedSize(28, 28);
+    m_btnNextDay->setCursor(Qt::PointingHandCursor);
+    m_btnNextDay->setToolTip("Next day");
+
+    m_btnTodayBar = new QPushButton("Today");
+    m_btnTodayBar->setObjectName("todayBtn");
+    m_btnTodayBar->setFixedHeight(28);
+    m_btnTodayBar->setCursor(Qt::PointingHandCursor);
+    m_btnTodayBar->setToolTip("Jump to today");
 
     // Edit / Delete act on the selected event in the timeline
     m_btnEdit = new QPushButton("Edit");
@@ -808,6 +828,10 @@ void MainWindow::buildUI() {
     m_btnWeek->setCursor(Qt::PointingHandCursor);
 
     toolbarLayout->addWidget(m_dayLabel, 1);
+    toolbarLayout->addWidget(m_btnPrevDay);
+    toolbarLayout->addWidget(m_btnTodayBar);
+    toolbarLayout->addWidget(m_btnNextDay);
+    toolbarLayout->addSpacing(Theme::Space::S);
     toolbarLayout->addWidget(m_btnDay);
     toolbarLayout->addWidget(m_btnWeek);
     toolbarLayout->addSpacing(Theme::Space::L);
@@ -939,6 +963,16 @@ void MainWindow::wireConnections() {
         m_btnDay->setObjectName("subtleBtn");
         m_btnDay->setStyle(m_btnDay->style());
         m_btnWeek->setStyle(m_btnWeek->style());
+    });
+
+    connect(m_btnPrevDay, &QPushButton::clicked, this, [this] {
+        onDatePicked(m_selectedDate.addDays(-1));
+    });
+    connect(m_btnNextDay, &QPushButton::clicked, this, [this] {
+        onDatePicked(m_selectedDate.addDays(1));
+    });
+    connect(m_btnTodayBar, &QPushButton::clicked, this, [this] {
+        onDatePicked(QDate::currentDate());
     });
 
     // Search panel (Cmd+F)
@@ -1182,7 +1216,7 @@ void MainWindow::rebuildCalendarSources() {
 
     // ── MY CALENDARS ─────────────────────────────────────────────────────
     addSection("MY CALENDARS");
-    addRow("local",   "EduSync",          QColor("#6366f1"), true);
+    addRow("local",   "My Calendar",      QColor("#C94F2C"), true);
     addRow("apple",   "Apple Calendar",   QColor("#fc3d39"),
            m_appleProvider && m_appleProvider->isAuthenticated());
     addRow("google",  "Google Calendar",  QColor("#4285f4"),
@@ -1193,7 +1227,7 @@ void MainWindow::rebuildCalendarSources() {
     // ── APP CALENDARS (CalDAV) ────────────────────────────────────────────
     if (!m_caldavProviders.isEmpty()) {
         lay->addSpacing(4);
-        addSection("OTHER CALENDARS");
+        addSection("APPS");
         const QList<QColor> caldavPalette = {
             QColor("#22c55e"), QColor("#f59e0b"), QColor("#ec4899"),
             QColor("#14b8a6"), QColor("#a855f7")

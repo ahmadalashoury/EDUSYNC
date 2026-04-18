@@ -115,6 +115,9 @@ private:
     QPushButton* m_btnSettings = nullptr;
     QPushButton* m_btnDay      = nullptr;   // view toggle
     QPushButton* m_btnWeek     = nullptr;
+    QPushButton* m_btnPrevDay  = nullptr;
+    QPushButton* m_btnNextDay  = nullptr;
+    QPushButton* m_btnTodayBar = nullptr;
 
     QLabel* m_dayLabel   = nullptr;
     QLabel* m_syncStatus = nullptr;

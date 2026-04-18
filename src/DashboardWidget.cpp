@@ -38,8 +38,8 @@ DashboardWidget::DashboardWidget(QWidget* parent)
 
     // Summary insight — large, visually dominant
     m_summaryLabel = new QLabel(container);
-    QFont sumFont = Theme::Font::heading();
-    sumFont.setPointSize(20);
+    QFont sumFont = Theme::Font::title();
+    sumFont.setPointSize(24);
     sumFont.setWeight(QFont::DemiBold);
     m_summaryLabel->setFont(sumFont);
     m_summaryLabel->setWordWrap(true);
@@ -47,13 +47,13 @@ DashboardWidget::DashboardWidget(QWidget* parent)
     m_mainLayout->addWidget(m_summaryLabel);
     m_mainLayout->addSpacing(Theme::Space::XL);
 
-    // Metrics card — fewer, sharper metrics
-    m_metricsCard = new StatCard("Today at a glance", container);
+    // Metrics card — calmer and more editorial
+    m_metricsCard = new StatCard("Day pulse", container);
     m_mainLayout->addWidget(m_metricsCard);
     m_mainLayout->addSpacing(Theme::Space::M);
 
     // Suggestions card
-    m_suggestCard = new StatCard("Suggestions", container);
+    m_suggestCard = new StatCard("Recommended next", container);
     m_mainLayout->addWidget(m_suggestCard);
     m_mainLayout->addSpacing(Theme::Space::L);
 
@@ -70,34 +70,26 @@ DashboardWidget::DashboardWidget(QWidget* parent)
     // ── Chat card — natural-language scheduling ─────────────────────────────
     m_chatCard = new QFrame(container);
     m_chatCard->setObjectName("chatCard");
-    m_chatCard->setStyleSheet(
-        "QFrame#chatCard {"
-        "  background: rgba(79,140,255,0.04);"
-        "  border: 1px solid rgba(79,140,255,0.16);"
-        "  border-radius: 14px;"
-        "}");
     auto* chatLay = new QVBoxLayout(m_chatCard);
     chatLay->setContentsMargins(Theme::Space::M, Theme::Space::M,
                                  Theme::Space::M, Theme::Space::M);
     chatLay->setSpacing(Theme::Space::S);
 
-    auto* chatTitle = new QLabel("Ask the assistant", m_chatCard);
+    m_chatTitle = new QLabel("Ask EduSync", m_chatCard);
     QFont chatTitleF = Theme::Font::base();
     chatTitleF.setWeight(QFont::DemiBold);
     chatTitleF.setPointSizeF(11.5);
-    chatTitle->setFont(chatTitleF);
-    chatTitle->setStyleSheet("color: #c8d4e8;");
-    chatLay->addWidget(chatTitle);
+    m_chatTitle->setFont(chatTitleF);
+    chatLay->addWidget(m_chatTitle);
 
-    auto* chatHint = new QLabel(
-        "Try: \"schedule lunch with mom tomorrow at noon\" or "
-        "\"block 2 hours of focus tomorrow morning\".", m_chatCard);
-    chatHint->setWordWrap(true);
+    m_chatHint = new QLabel(
+        "Try “schedule lunch with mom tomorrow at noon” or "
+        "“block 2 hours of focus tomorrow morning”.", m_chatCard);
+    m_chatHint->setWordWrap(true);
     QFont hintF = Theme::Font::caption();
     hintF.setPointSizeF(10.0);
-    chatHint->setFont(hintF);
-    chatHint->setStyleSheet("color: #6b7a94;");
-    chatLay->addWidget(chatHint);
+    m_chatHint->setFont(hintF);
+    chatLay->addWidget(m_chatHint);
 
     // Message log
     auto* logHolder = new QWidget(m_chatCard);
@@ -114,17 +106,8 @@ DashboardWidget::DashboardWidget(QWidget* parent)
     composerLay->setSpacing(Theme::Space::S);
 
     m_chatInput = new QLineEdit(composer);
-    m_chatInput->setPlaceholderText("Ask the assistant…");
-    m_chatInput->setStyleSheet(
-        "QLineEdit {"
-        "  background: rgba(18,26,42,0.6);"
-        "  border: 1px solid rgba(79,140,255,0.22);"
-        "  border-radius: 10px;"
-        "  padding: 8px 12px;"
-        "  color: #dde6f4;"
-        "  selection-background-color: rgba(79,140,255,0.45);"
-        "}"
-        "QLineEdit:focus { border: 1px solid #4f8cff; }");
+    m_chatInput->setPlaceholderText("Ask EduSync to help shape the day…");
+    m_chatInput->setClearButtonEnabled(true);
 
     m_chatSendBtn = new QPushButton("Send", composer);
     m_chatSendBtn->setObjectName("accentBtn");
@@ -156,6 +139,7 @@ DashboardWidget::DashboardWidget(QWidget* parent)
 // ============================================================================
 
 static QLabel* makeBubble(const QString& text, bool fromUser, QWidget* parent) {
+    const bool isDark = parent->palette().color(QPalette::Window).lightness() <= 127;
     auto* bubble = new QLabel(text, parent);
     bubble->setWordWrap(true);
     bubble->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -169,8 +153,12 @@ static QLabel* makeBubble(const QString& text, bool fromUser, QWidget* parent) {
         "  padding: 7px 11px;"
         "  color: %2;"
         "}")
-        .arg(fromUser ? "rgba(79,140,255,0.22)" : "rgba(255,255,255,0.04)")
-        .arg(fromUser ? "#dde6f4" : "#c8d4e8"));
+        .arg(fromUser
+            ? (isDark ? "rgba(79,140,255,0.22)" : "rgba(47,111,237,0.10)")
+            : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"))
+        .arg(fromUser
+            ? (isDark ? "#dde6f4" : "#183153")
+            : (isDark ? "#c8d4e8" : "#3f4d63")));
     bubble->setMaximumWidth(320);
     return bubble;
 }
@@ -270,11 +258,48 @@ void DashboardWidget::rebuildUI(const QDate& date,
                                  int workload, int balance,
                                  int freeMinutes, int freePercent,
                                  int totalEvents, int meetingCount) {
+    const bool isDark = palette().color(QPalette::Window).lightness() <= 127;
+    const auto c = isDark ? Theme::dark() : Theme::light();
+
+    if (m_chatCard) {
+        const QString chatCardStyle = QString(
+            "QFrame#chatCard {"
+            "  background: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 16px;"
+            "}")
+            .arg(isDark ? "rgba(79,140,255,0.05)" : "rgba(255,255,255,0.78)")
+            .arg(isDark ? "rgba(79,140,255,0.16)" : c.borderSubtle.name());
+        m_chatCard->setStyleSheet(chatCardStyle);
+    }
+    if (m_chatTitle)
+        m_chatTitle->setStyleSheet(QString("color: %1;").arg(c.text.name()));
+    if (m_chatHint)
+        m_chatHint->setStyleSheet(QString("color: %1;").arg(c.textSecondary.name()));
+    if (m_chatInput) {
+        const QString inputStyle = QString(
+            "QLineEdit {"
+            "  background: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 10px;"
+            "  padding: 8px 12px;"
+            "  color: %3;"
+            "  selection-background-color: %4;"
+            "}"
+            "QLineEdit:focus { border: 1px solid %5; }")
+            .arg(c.surfaceRaised.name())
+            .arg(c.borderSubtle.name())
+            .arg(c.text.name())
+            .arg(c.accent.name())
+            .arg(c.accent.name());
+        m_chatInput->setStyleSheet(inputStyle);
+    }
+
     // Date context
     if (date.isValid()) {
         const bool isToday = (date == QDate::currentDate());
         const QString dateStr = isToday
-            ? "Today's schedule"
+            ? "Today"
             : date.toString("dddd, MMMM d");
         m_dateLabel->setText(dateStr);
     }

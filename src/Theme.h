@@ -286,8 +286,15 @@ inline QString buildStylesheet(const Colors& c) {
             background: transparent;
         }
 
-        QWidget#leftRail, QWidget#rightRail, QWidget#toolbarSurface, QWidget#centerSurface,
-        QWidget#settingsPage {
+        QWidget#leftRail, QWidget#settingsPage {
+            background: %24;
+        }
+
+        QWidget#rightRail {
+            background: %4;
+        }
+
+        QWidget#toolbarSurface, QWidget#centerSurface {
             background: %1;
         }
 
@@ -301,6 +308,28 @@ inline QString buildStylesheet(const Colors& c) {
             background: transparent;
             border: none;
             border-radius: 0;
+        }
+
+        QLabel#brandGlyph {
+            background: %9;
+            color: white;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        QLabel#brandTitle {
+            color: %2;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: -0.15px;
+        }
+
+        QLabel#brandMeta {
+            color: %18;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
         }
 
         /* ── Scrollbars ─────────────────────────────────────── */

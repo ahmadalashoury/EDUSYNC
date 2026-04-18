@@ -529,13 +529,50 @@ void MainWindow::buildUI() {
     leftLayout->setContentsMargins(0, 0, 0, 0);
     leftLayout->setSpacing(0);
 
+    // ── BRAND ROW ────────────────────────────────────────────────────────
+    {
+        auto* brandRow = new QWidget;
+        auto* brandLay = new QHBoxLayout(brandRow);
+        brandLay->setContentsMargins(14, 18, 14, 8);
+        brandLay->setSpacing(10);
+
+        auto* brandGlyph = new QLabel("E");
+        brandGlyph->setObjectName("brandGlyph");
+        brandGlyph->setAlignment(Qt::AlignCenter);
+        brandGlyph->setFixedSize(30, 30);
+        brandLay->addWidget(brandGlyph);
+
+        auto* brandStack = new QVBoxLayout;
+        brandStack->setContentsMargins(0, 0, 0, 0);
+        brandStack->setSpacing(1);
+
+        auto* brandTitle = new QLabel("EduSync");
+        brandTitle->setObjectName("brandTitle");
+        brandStack->addWidget(brandTitle);
+
+        auto* brandMeta = new QLabel(QString("SPRING \xC2\xB7 %1").arg(QDate::currentDate().year()));
+        brandMeta->setObjectName("brandMeta");
+        brandStack->addWidget(brandMeta);
+        brandLay->addLayout(brandStack, 1);
+
+        m_btnSync = new QPushButton;
+        m_btnSync->setObjectName("navBtn");
+        m_btnSync->setCursor(Qt::PointingHandCursor);
+        m_btnSync->setFixedSize(28, 28);
+        m_btnSync->setText(QString::fromUtf8("\xE2\x86\xBB"));
+        m_btnSync->setToolTip("Sync now");
+        brandLay->addWidget(m_btnSync);
+
+        leftLayout->addWidget(brandRow);
+    }
+
     // ── NEW EVENT button ─────────────────────────────────────────────────
     {
         auto* topRow = new QWidget;
         auto* topLay = new QHBoxLayout(topRow);
-        topLay->setContentsMargins(14, 18, 14, 12);
+        topLay->setContentsMargins(14, 0, 14, 14);
 
-        m_btnAdd = new QPushButton("+ New Event");
+        m_btnAdd = new QPushButton("New event");
         m_btnAdd->setObjectName("accentBtn");
         m_btnAdd->setCursor(Qt::PointingHandCursor);
         m_btnAdd->setFixedHeight(42);
@@ -550,17 +587,12 @@ void MainWindow::buildUI() {
         leftLayout->addWidget(topRow);
     }
 
-    // ── CALENDAR SOURCES (MY CALENDARS / APP CALENDARS) ─────────────────
-    m_calSourcesContainer = new QWidget;
-    m_calSourcesContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    leftLayout->addWidget(m_calSourcesContainer);
-
-    // ── MINI CALENDAR — iOS pill style ──────────────────────────────────
+    // ── MINI CALENDAR ────────────────────────────────────────────────────
     {
         auto* calCard = new QFrame;
         calCard->setObjectName("calendarCard");
         auto* calCardLay = new QVBoxLayout(calCard);
-        calCardLay->setContentsMargins(10, 10, 10, 4);
+        calCardLay->setContentsMargins(12, 8, 12, 8);
         calCardLay->setSpacing(0);
 
         // Row 1: ← [month name large] →
@@ -580,12 +612,12 @@ void MainWindow::buildUI() {
         m_nextBtn->setCursor(Qt::PointingHandCursor);
         m_nextBtn->setToolTip("Next month");
 
-        // Large month name label (e.g. "APRIL")
+        // Month name label
         m_monthTitle = new QLabel;
-        QFont monthF = Theme::Font::base();
-        monthF.setPointSizeF(16.0);
-        monthF.setWeight(QFont::Black);
-        monthF.setLetterSpacing(QFont::AbsoluteSpacing, 0.5);
+        QFont monthF = Theme::Font::title();
+        monthF.setPointSizeF(22.0);
+        monthF.setWeight(QFont::DemiBold);
+        monthF.setLetterSpacing(QFont::AbsoluteSpacing, -0.25);
         m_monthTitle->setFont(monthF);
         m_monthTitle->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
 
@@ -600,9 +632,10 @@ void MainWindow::buildUI() {
         yearRow->setSpacing(0);
 
         m_yearLabel = new QLabel;
-        QFont yearF = Theme::Font::base();
-        yearF.setPointSizeF(11.0);
-        yearF.setWeight(QFont::Normal);
+        QFont yearF = Theme::Font::mono();
+        yearF.setPointSizeF(10.0);
+        yearF.setWeight(QFont::Medium);
+        yearF.setLetterSpacing(QFont::AbsoluteSpacing, 0.8);
         m_yearLabel->setFont(yearF);
         m_yearLabel->setStyleSheet("color: #3d5780;");
         yearRow->addWidget(m_yearLabel, 1);
@@ -631,6 +664,19 @@ void MainWindow::buildUI() {
         calCardLay->addWidget(m_calendar);
 
         leftLayout->addWidget(calCard);
+    }
+
+    // ── CALENDAR SOURCES ────────────────────────────────────────────────
+    {
+        auto* srcSep = new QFrame;
+        srcSep->setFrameShape(QFrame::HLine);
+        srcSep->setFixedHeight(1);
+        srcSep->setStyleSheet("background: #0f1520; border: none;");
+        leftLayout->addWidget(srcSep);
+
+        m_calSourcesContainer = new QWidget;
+        m_calSourcesContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+        leftLayout->addWidget(m_calSourcesContainer);
     }
 
     // ── DAY EVENT LIST (below mini calendar, iOS style) ──────────────────
@@ -686,7 +732,7 @@ void MainWindow::buildUI() {
 
     leftLayout->addStretch();
 
-    // ── FOOTER (sync status + Sync/Settings buttons) ─────────────────────
+    // ── FOOTER (status + settings) ───────────────────────────────────────
     {
         auto* footerSep = new QFrame;
         footerSep->setFrameShape(QFrame::HLine);
@@ -707,24 +753,13 @@ void MainWindow::buildUI() {
         m_syncStatus->setStyleSheet("color: #3d5780;");
         footerLay->addWidget(m_syncStatus);
 
-        auto* footerBtns = new QHBoxLayout;
-        footerBtns->setSpacing(6);
-
-        m_btnSync = new QPushButton("Sync");
-        m_btnSync->setObjectName("subtleBtn");
-        m_btnSync->setCursor(Qt::PointingHandCursor);
-        m_btnSync->setFixedHeight(30);
-        m_btnSync->setToolTip("Sync with connected calendars");
-
         m_btnSettings = new QPushButton("Settings");
         m_btnSettings->setObjectName("subtleBtn");
         m_btnSettings->setCursor(Qt::PointingHandCursor);
         m_btnSettings->setFixedHeight(30);
         m_btnSettings->setToolTip("Open settings");
 
-        footerBtns->addWidget(m_btnSync);
-        footerBtns->addWidget(m_btnSettings);
-        footerLay->addLayout(footerBtns);
+        footerLay->addWidget(m_btnSettings);
 
         leftLayout->addWidget(footer);
     }
@@ -813,7 +848,7 @@ void MainWindow::buildUI() {
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 1);
     m_splitter->setStretchFactor(2, 0);
-    m_splitter->setSizes({260, 860, 300});
+    m_splitter->setSizes({296, 900, 360});
 }
 
 // ============================================================================
@@ -1147,7 +1182,7 @@ void MainWindow::rebuildCalendarSources() {
 
     // ── MY CALENDARS ─────────────────────────────────────────────────────
     addSection("MY CALENDARS");
-    addRow("local",   "My Calendar",      QColor("#6366f1"), true);
+    addRow("local",   "EduSync",          QColor("#6366f1"), true);
     addRow("apple",   "Apple Calendar",   QColor("#fc3d39"),
            m_appleProvider && m_appleProvider->isAuthenticated());
     addRow("google",  "Google Calendar",  QColor("#4285f4"),
@@ -1158,7 +1193,7 @@ void MainWindow::rebuildCalendarSources() {
     // ── APP CALENDARS (CalDAV) ────────────────────────────────────────────
     if (!m_caldavProviders.isEmpty()) {
         lay->addSpacing(4);
-        addSection("APP CALENDARS");
+        addSection("OTHER CALENDARS");
         const QList<QColor> caldavPalette = {
             QColor("#22c55e"), QColor("#f59e0b"), QColor("#ec4899"),
             QColor("#14b8a6"), QColor("#a855f7")
@@ -1193,20 +1228,20 @@ void MainWindow::updateSyncStatus() {
 
     // Footer status label
     if (connectedCount == 0) {
-        m_syncStatus->setText("No calendars connected — open Settings to connect");
+        m_syncStatus->setText("No calendars linked. Connect one in Settings.");
         m_btnSync->setEnabled(false);
     } else if (errorCount > 0) {
         m_syncStatus->setText(QString("%1 source%2 need attention")
                               .arg(errorCount).arg(errorCount == 1 ? "" : "s"));
         m_btnSync->setEnabled(true);
     } else if (syncingCount > 0) {
-        m_syncStatus->setText("Syncing…");
+        m_syncStatus->setText("Syncing your calendars…");
         m_btnSync->setEnabled(false);
     } else {
         const auto lastSync = m_sync->lastSyncTime();
         m_syncStatus->setText(lastSync.isValid()
-            ? "Last sync " + lastSync.toString("h:mm ap")
-            : QString("%1 calendar%2 connected")
+            ? "Last sync at " + lastSync.toString("h:mm ap")
+            : QString("%1 calendar%2 linked")
                   .arg(connectedCount).arg(connectedCount == 1 ? "" : "s"));
         m_btnSync->setEnabled(true);
     }
@@ -1522,7 +1557,7 @@ void MainWindow::applyTheme(ThemeMode mode) {
     if (m_monthTitle) {
         m_monthTitle->setStyleSheet(isDark
             ? "color: #4f8cff;"
-            : "color: " + c.accent.name() + ";");
+            : "color: " + c.text.name() + ";");
     }
     if (m_yearLabel) {
         m_yearLabel->setStyleSheet(isDark
@@ -1595,7 +1630,7 @@ void MainWindow::refreshMonthTitle() {
     const int y = m_calendar->yearShown();
     const int mo = m_calendar->monthShown();
     // Month name ALL-CAPS, colored accent when dark
-    const QString name = QLocale().standaloneMonthName(mo, QLocale::LongFormat).toUpper();
+    const QString name = QLocale().standaloneMonthName(mo, QLocale::LongFormat);
     m_monthTitle->setText(name);
     if (m_yearLabel)
         m_yearLabel->setText(QString::number(y));

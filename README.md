@@ -1,6 +1,6 @@
 # EduSync
 
-EduSync is a macOS desktop calendar built with Qt, C++, and native Apple frameworks. It combines a premium scheduling shell, day/week planning views, unified account management, and an assistant layer that can work both locally and with an OpenAI-compatible model.
+EduSync is a macOS desktop calendar built with Qt, C++, and native Apple frameworks. It combines an editorial premium scheduling shell, day/week planning views, unified account management, and an assistant layer that can work both locally and with an OpenAI-compatible model.
 
 The current app is focused on feeling like one polished product again:
 - one main shell
@@ -8,15 +8,15 @@ The current app is focused on feeling like one polished product again:
 - local event storage
 - optional external calendar linking
 - assistant-guided planning and natural-language scheduling
-- premium dark and light themes
+- premium dark and light themes with an editorial left rail and calmer assistant panel
 
 ## What EduSync Does
 
 ### Calendar experience
-- Left-rail mini calendar with month navigation, source visibility, and selected-day event context
+- Left-rail brand header, mini calendar, source visibility, and selected-day event context
 - Day and week timeline views in the center workspace
-- Futuristic event editor for creating and editing blocks
-- Refined dark/light visual system across the shell, calendar, and editor
+- Premium event editor for creating and editing blocks
+- Refined dark/light visual system across the shell, calendar, editor, and assistant rail
 - Right-side assistant panel for workload, free-time, suggestions, and chat
 
 ### Workspace flow
@@ -103,7 +103,7 @@ To run the binary directly:
 ## Project Structure
 
 - `CMakeLists.txt`: build configuration
-- `src/MainWindow.cpp`: main shell, left rail, event editor, and overall app flow
+- `src/MainWindow.cpp`: main shell, editorial left rail, event editor, and overall app flow
 - `src/SettingsDialog.cpp`: unified settings and account center
 - `src/CalendarWidget.cpp`: mini month calendar surface and cell rendering
 - `src/DayTimelineWidget.cpp`: day timeline rendering
@@ -140,4 +140,4 @@ EduSync is now a coherent desktop calendar product with:
 - assistant-backed planning
 - premium light and dark modes
 
-It is still an actively evolving desktop app rather than a finished platform product, but the current repo reflects the newer shell, assistant, sidebar, and planning experience rather than the older split-app state.
+It is still an actively evolving desktop app rather than a finished platform product, but the current repo reflects the newer shell, assistant rail, sidebar, and planning experience rather than the older split-app state.

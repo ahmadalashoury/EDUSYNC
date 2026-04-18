@@ -78,6 +78,8 @@ private:
 
     // Chat
     QFrame*      m_chatCard     = nullptr;
+    QLabel*      m_chatTitle    = nullptr;
+    QLabel*      m_chatHint     = nullptr;
     QVBoxLayout* m_chatLog      = nullptr;
     QLineEdit*   m_chatInput    = nullptr;
     QPushButton* m_chatSendBtn  = nullptr;
